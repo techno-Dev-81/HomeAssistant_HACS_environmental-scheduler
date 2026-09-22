@@ -10,6 +10,13 @@
 //   persons:       list of { entity, name }
 //   heat_pump:     { scop_entity, live_cop_entity, outdoor_temp_entity,
 //                    power_input_entity, flow_temp_entity }
+//   sections:      ordered list of which sections to render, from
+//                  [house_mode, presence, rooms, heat_pump]. Omit for all
+//                  four in that order; a subset renders only those, in the
+//                  order given — e.g. sections: [rooms] for a rooms-only
+//                  card, no separate card type needed.
+
+const DEFAULT_SECTIONS = ['house_mode', 'presence', 'rooms', 'heat_pump'];
 
 const MODES = [
   { key: 'normal',   label: 'Normal',   color: '#4caf50' },
@@ -229,6 +236,25 @@ class EnvironmentalSchedulerOverviewCard extends HTMLElement {
     const hpHtml      = this._renderHeatPump();
     const panelHtml   = this._configRoomId ? this._renderConfigPanel() : '';
 
+    // Each section is self-contained (its own label) so a `sections` config
+    // can pick a subset and order them freely — a rooms-only card is just
+    // `sections: [rooms]` on this same card type, no separate card needed.
+    const sectionHtml = {
+      house_mode: `
+        <div class="section-label">House Mode</div>
+        <div class="mode-row">${modeBtns}</div>`,
+      presence: personsHtml ? `<div class="section-label">Presence</div>${personsHtml}` : '',
+      rooms: `
+        <div class="section-label">Rooms</div>
+        ${status ? roomsHtml : '<div class="no-data">Loading…</div>'}`,
+      heat_pump: hpHtml ? `<div class="section-label">Heat Pump</div>${hpHtml}` : '',
+    };
+
+    const sections = (this._config.sections ?? DEFAULT_SECTIONS)
+      .filter(key => key in sectionHtml)
+      .map(key => sectionHtml[key])
+      .join('');
+
     this.shadowRoot.innerHTML = `
       ${this._css()}
       <div class="card">
@@ -236,15 +262,7 @@ class EnvironmentalSchedulerOverviewCard extends HTMLElement {
           <span class="title">${escHtml(title)}</span>
         </div>
 
-        <div class="section-label">House Mode</div>
-        <div class="mode-row">${modeBtns}</div>
-
-        ${personsHtml ? `<div class="section-label">Presence</div>${personsHtml}` : ''}
-
-        <div class="section-label">Rooms</div>
-        ${status ? roomsHtml : '<div class="no-data">Loading…</div>'}
-
-        ${hpHtml ? `<div class="section-label">Heat Pump</div>${hpHtml}` : ''}
+        ${sections}
       </div>
       ${panelHtml}`;
 
