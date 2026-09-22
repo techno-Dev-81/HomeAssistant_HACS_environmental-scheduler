@@ -108,7 +108,7 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
           </div>`).join('')}
       </div>` : '';
 
-    const roomsHtml = s.rooms.length ? `
+    const roomsHtml = s.loading ? '<div class="lcars-no-data">Loading…</div>' : s.rooms.length ? `
       <div class="lcars-room-grid">
         ${s.rooms.map(r => `
           <div class="lcars-room-tile" data-room="${r.id}" style="--room-accent:${REASON_COLORS[r.reason] ?? '#cccccc'}">
