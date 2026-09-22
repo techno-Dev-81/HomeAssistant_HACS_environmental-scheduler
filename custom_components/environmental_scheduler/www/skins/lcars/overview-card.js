@@ -58,17 +58,29 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
     this._hass = hass;
     if (!this._engine) {
       this._engine = new OverviewEngine(hass, this._config);
+    } else {
+      this._engine.hass = hass;
+    }
+    // A disconnect (HA's conditional-card mechanism can unmount/remount
+    // this element when switching pages) clears this._unsubscribe without
+    // ever nulling this._engine — without the re-subscribe check below,
+    // the "else" branch above would just keep feeding hass to an engine
+    // with zero listeners, and the card would silently stop updating
+    // forever (found live: engine kept resolving fine, card just never
+    // heard about it).
+    if (!this._unsubscribe) {
       this._unsubscribe = this._engine.subscribe(state => {
         this._state = state;
         this._render();
       });
-    } else {
-      this._engine.hass = hass;
     }
   }
 
   disconnectedCallback() {
-    if (this._unsubscribe) this._unsubscribe();
+    if (this._unsubscribe) {
+      this._unsubscribe();
+      this._unsubscribe = null;
+    }
   }
 
   async _setMode(mode) {
