@@ -103,7 +103,7 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
     const s = this._state;
     if (!s) return;
 
-    const title = this._config.title ?? 'Home Overview';
+    const title = this._config.title;
     const mode = s.houseMode ?? 'normal';
 
     const modeBtns = MODES.map(m => `
@@ -146,10 +146,11 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>${lcarsTokensCSS(this._config.lcars_options)}${this._css()}</style>
       <div class="lcars-card">
+        ${title ? `
         <div class="lcars-header">
           <div class="lcars-header-elbow"></div>
           <div class="lcars-header-bar"><span class="lcars-title">${escHtml(title)}</span></div>
-        </div>
+        </div>` : ''}
 
         <div class="lcars-section-label">House Mode</div>
         <div class="lcars-mode-row">${modeBtns}</div>
