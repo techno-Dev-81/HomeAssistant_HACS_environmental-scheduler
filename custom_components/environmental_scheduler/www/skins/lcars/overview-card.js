@@ -179,13 +179,13 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
       }
       .lcars-title { color: var(--lcars-bg); font-size: 1.3rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 
-      .lcars-section-label { color: var(--lcars-secondary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin: 12px 4px 6px; }
+      .lcars-section-label { color: #ffffff; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin: 12px 4px 6px; }
 
       .lcars-mode-row, .lcars-person-row { display: flex; gap: 8px; flex-wrap: wrap; }
       .lcars-pill {
         border: none; cursor: pointer; padding: 8px 20px; font-family: var(--lcars-font);
         font-weight: 700; letter-spacing: 0.05em; font-size: 0.85rem; text-transform: uppercase;
-        border-radius: var(--lcars-radius-outer); background: var(--lcars-panel-bg); color: var(--lcars-primary);
+        border-radius: var(--lcars-radius-outer); background: var(--lcars-panel-bg); color: #ffffff;
         transition: background 0.15s, color 0.15s;
       }
       .lcars-pill.active { background: var(--lcars-primary); color: var(--lcars-bg); }
@@ -197,8 +197,8 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
         border: 2px solid var(--lcars-panel-bg);
       }
       .lcars-chip.home { border-color: var(--lcars-primary); }
-      .lcars-chip-name { font-size: 0.78rem; font-weight: 700; color: var(--lcars-primary); text-transform: uppercase; }
-      .lcars-chip-state { font-size: 0.68rem; color: var(--lcars-secondary); }
+      .lcars-chip-name { font-size: 0.78rem; font-weight: 700; color: #ffffff; text-transform: uppercase; }
+      .lcars-chip-state { font-size: 0.68rem; color: #ffffff; }
 
       .lcars-room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 240px; overflow-y: auto; }
       .lcars-room-tile {
@@ -208,16 +208,16 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
       .lcars-room-tile:hover { filter: brightness(1.2); }
       .lcars-room-accent { width: 8px; background: var(--room-accent, #cccccc); }
       .lcars-room-body { flex: 1; padding: 8px 10px; min-width: 0; }
-      .lcars-room-name { font-size: 0.78rem; font-weight: 700; color: var(--lcars-primary); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .lcars-room-name { font-size: 0.78rem; font-weight: 700; color: #ffffff; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .lcars-room-temp { font-size: 1.15rem; font-weight: 700; color: #ffffff; }
-      .lcars-room-reason { font-size: 0.68rem; color: var(--room-accent, var(--lcars-secondary)); text-transform: uppercase; letter-spacing: 0.04em; }
+      .lcars-room-reason { font-size: 0.68rem; color: #ffffff; text-transform: uppercase; letter-spacing: 0.04em; }
 
       .lcars-hp-strip { display: flex; gap: 8px; flex-wrap: wrap; }
       .lcars-hp-stat { background: var(--lcars-panel-bg); border-radius: var(--lcars-radius-inner); padding: 6px 12px; }
-      .lcars-hp-label { display: block; font-size: 0.65rem; color: var(--lcars-secondary); text-transform: uppercase; }
+      .lcars-hp-label { display: block; font-size: 0.65rem; color: #ffffff; text-transform: uppercase; }
       .lcars-hp-value { font-size: 0.95rem; font-weight: 700; color: #ffffff; }
 
-      .lcars-no-data { color: var(--lcars-secondary); font-size: 0.85rem; padding: 8px 4px; }
+      .lcars-no-data { color: #ffffff; font-size: 0.85rem; padding: 8px 4px; }
     `;
   }
 
