@@ -10,6 +10,11 @@
 //   persons:       list of { entity, name }        (optional override)
 //   heat_pump:     { scop_entity, live_cop_entity, outdoor_temp_entity,
 //                    power_input_entity, flow_temp_entity }
+//   sections:      ordered list of which sections to render, from
+//                  [house_mode, presence, rooms, heat_pump]. Omit for all
+//                  four in that order; a subset renders only those, in the
+//                  order given — e.g. sections: [rooms] for a rooms-only
+//                  card, no separate card type needed.
 //   lcars_options:
 //     color_scheme: classic | blue | gold | custom
 //     custom_colors: { primary, secondary, accent, bg, panelBg }
@@ -33,6 +38,8 @@ const REASON_COLORS = {
   vacation: 'var(--lcars-accent)',
   error: '#ff3333',
 };
+
+const DEFAULT_SECTIONS = ['house_mode', 'presence', 'rooms', 'heat_pump'];
 
 function escHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -110,16 +117,6 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
       <button class="lcars-pill${m.key === mode ? ' active' : ''}" data-mode="${m.key}">${m.label}</button>
     `).join('');
 
-    const personsHtml = s.persons.length ? `
-      <div class="lcars-section-label">Presence</div>
-      <div class="lcars-person-row">
-        ${s.persons.map(p => `
-          <div class="lcars-chip${p.isHome ? ' home' : ''}">
-            <span class="lcars-chip-name">${escHtml(p.name)}</span>
-            <span class="lcars-chip-state">${p.isHome ? 'HOME' : p.state === 'not_home' ? 'AWAY' : 'UNKNOWN'}</span>
-          </div>`).join('')}
-      </div>` : '';
-
     const roomsHtml = s.loading ? '<div class="lcars-no-data">Loading…</div>' : s.rooms.length ? `
       <div class="lcars-room-grid">
         ${s.rooms.map(r => `
@@ -133,15 +130,40 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
           </div>`).join('')}
       </div>` : '<div class="lcars-no-data">No rooms configured</div>';
 
-    const hpHtml = s.heatPump.length ? `
-      <div class="lcars-section-label">Heat Pump</div>
-      <div class="lcars-hp-strip">
-        ${s.heatPump.map(hp => `
-          <div class="lcars-hp-stat">
-            <span class="lcars-hp-label">${escHtml(hp.label)}</span>
-            <span class="lcars-hp-value">${escHtml(hp.value)}${hp.unit ? ` ${escHtml(hp.unit)}` : ''}</span>
-          </div>`).join('')}
-      </div>` : '';
+    // Each section is self-contained (its own label) so a `sections` config
+    // can pick a subset and order them freely — a rooms-only card is just
+    // `sections: [rooms]` on this same card type, no separate card needed.
+    const sectionHtml = {
+      house_mode: `
+        <div class="lcars-section-label">House Mode</div>
+        <div class="lcars-mode-row">${modeBtns}</div>`,
+      presence: s.persons.length ? `
+        <div class="lcars-section-label">Presence</div>
+        <div class="lcars-person-row">
+          ${s.persons.map(p => `
+            <div class="lcars-chip${p.isHome ? ' home' : ''}">
+              <span class="lcars-chip-name">${escHtml(p.name)}</span>
+              <span class="lcars-chip-state">${p.isHome ? 'HOME' : p.state === 'not_home' ? 'AWAY' : 'UNKNOWN'}</span>
+            </div>`).join('')}
+        </div>` : '',
+      rooms: `
+        <div class="lcars-section-label">Rooms</div>
+        ${s.error ? `<div class="lcars-no-data">${escHtml(s.error)}</div>` : roomsHtml}`,
+      heat_pump: s.heatPump.length ? `
+        <div class="lcars-section-label">Heat Pump</div>
+        <div class="lcars-hp-strip">
+          ${s.heatPump.map(hp => `
+            <div class="lcars-hp-stat">
+              <span class="lcars-hp-label">${escHtml(hp.label)}</span>
+              <span class="lcars-hp-value">${escHtml(hp.value)}${hp.unit ? ` ${escHtml(hp.unit)}` : ''}</span>
+            </div>`).join('')}
+        </div>` : '',
+    };
+
+    const sections = (this._config.sections ?? DEFAULT_SECTIONS)
+      .filter(key => key in sectionHtml)
+      .map(key => sectionHtml[key])
+      .join('');
 
     this.shadowRoot.innerHTML = `
       <style>${lcarsTokensCSS(this._config.lcars_options)}${this._css()}</style>
@@ -152,15 +174,7 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
           <div class="lcars-header-bar"><span class="lcars-title">${escHtml(title)}</span></div>
         </div>` : ''}
 
-        <div class="lcars-section-label">House Mode</div>
-        <div class="lcars-mode-row">${modeBtns}</div>
-
-        ${personsHtml}
-
-        <div class="lcars-section-label">Rooms</div>
-        ${s.error ? `<div class="lcars-no-data">${escHtml(s.error)}</div>` : roomsHtml}
-
-        ${hpHtml}
+        ${sections}
       </div>`;
 
     this._bindEvents();
