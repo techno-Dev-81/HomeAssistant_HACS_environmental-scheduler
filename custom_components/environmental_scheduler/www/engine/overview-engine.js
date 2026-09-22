@@ -19,6 +19,7 @@ export const REASON_LABELS = {
 };
 
 const REFRESH_INTERVAL_MS = 30000;
+const CALL_TIMEOUT_MS = 10000;
 const CHANGE_EVENTS = [
   'environmental_scheduler.house_mode_changed',
   'environmental_scheduler.block_changed',
@@ -107,10 +108,18 @@ export class OverviewEngine {
   }
 
   async _call(service, data = {}) {
-    const r = await this._hass.connection.sendMessagePromise({
+    // A call can hang indefinitely if it races the websocket connection
+    // (e.g. issued during a cold page load, right as `hass.connection` is
+    // swapped for a freshly-(re)connected instance) — bound it so a stuck
+    // call surfaces as a retryable error instead of leaving the card on
+    // "loading" forever.
+    const callPromise = this._hass.connection.sendMessagePromise({
       type: 'call_service', domain: 'environmental_scheduler',
       service, service_data: data, return_response: true,
     });
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${service} timed out after ${CALL_TIMEOUT_MS}ms`)), CALL_TIMEOUT_MS));
+    const r = await Promise.race([callPromise, timeout]);
     return r.response;
   }
 
