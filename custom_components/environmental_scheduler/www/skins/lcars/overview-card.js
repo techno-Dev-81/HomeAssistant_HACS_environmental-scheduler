@@ -195,13 +195,22 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
 
       .lcars-mode-row, .lcars-person-row { display: flex; gap: 8px; flex-wrap: wrap; }
       .lcars-pill {
-        border: none; cursor: pointer; padding: 8px 20px; font-family: var(--lcars-font);
+        /* Matches the dashboard's own button chrome (same vars its nav
+           buttons use via card_mod's button-bullet-* classes) rather than
+           this skin's own room/header tokens, so it reads as one system
+           with the rest of the LCARS dashboard. */
+        border: none; cursor: pointer; padding: 8px 20px; font-family: var(--lcars-font, var(--font-family));
         font-weight: 700; letter-spacing: 0.05em; font-size: 0.85rem; text-transform: uppercase;
-        border-radius: var(--lcars-radius-outer); background: var(--lcars-panel-bg); color: #ffffff;
-        transition: background 0.15s, color 0.15s;
+        border-radius: 999px;
+        background: var(--lcars-card-button-color, var(--lcars-panel-bg));
+        color: var(--lcars-card-button-text, #ffffff);
+        transition: filter 0.15s;
       }
-      .lcars-pill.active { background: var(--lcars-primary); color: var(--lcars-bg); }
-      .lcars-pill:hover:not(.active) { background: var(--lcars-secondary); color: var(--lcars-bg); }
+      .lcars-pill.active {
+        background: var(--lcars-card-top-color, var(--lcars-primary));
+        color: var(--lcars-background-text, #ffffff);
+      }
+      .lcars-pill:hover:not(.active) { filter: brightness(1.15); }
 
       .lcars-chip {
         display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 84px;
