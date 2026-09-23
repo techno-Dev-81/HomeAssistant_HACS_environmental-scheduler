@@ -76,6 +76,47 @@ lcars_options:
 
 Default skin (`default_options`, name TBD): standard HA card options only for now (no extra knobs planned yet — add here if/when needed).
 
+## Color rules (LCARS skin)
+
+`lcars_options.color_scheme` (and `--lcars-primary`/`--lcars-secondary`/
+`--lcars-accent`/`--lcars-bg`/`--lcars-panel-bg` from `lcars-tokens.js`)
+exist so the skin still looks right standalone, on a dashboard that isn't
+running the LCARS theme. But when this card sits inside a dashboard that
+*is* running `themes/lcars/lcars.yaml` (the common case for this project),
+any interactive chrome — buttons, panel headers, tabs, anything meant to
+read as part of the dashboard rather than as this card's own decoration —
+must pull from that theme's own CSS custom properties, not the skin's
+tokens. The theme vars inherit into the card's shadow DOM for free; using
+them is what makes the card look like one system with the rest of the
+dashboard instead of a plugged-in widget with its own palette.
+
+Pattern (see `.lcars-pill` in `skins/lcars/overview-card.js`): chain the
+dashboard var first, the skin's own token as fallback, so standalone use
+still works:
+```css
+background: var(--lcars-card-button-color, var(--lcars-panel-bg));
+color: var(--lcars-card-button-text, #ffffff);
+```
+and for an "active"/emphasized state:
+```css
+background: var(--lcars-card-top-color, var(--lcars-primary));
+color: var(--lcars-background-text, #ffffff);
+```
+
+`--lcars-primary`/`--lcars-accent`/etc. are still fine to use directly for
+things the dashboard theme has no opinion on — room-status accent colors,
+the reason-color strip on a room tile — where there's no equivalent
+dashboard var to chain from.
+
+**Never introduce a new color** (a literal hex value, or a skin token used
+somewhere the dashboard-var pattern above applies) without confirming with
+the maintainer first. A panel that used `--lcars-primary` directly for its
+header shipped a color (salmon, under `color_scheme: classic`) that
+appeared nowhere else on the dashboard — caught live, fixed by switching
+to the chained pattern above (PR #25). Any text on a black/dark background
+must be white (`#ffffff` or `var(--lcars-background-text, #ffffff)`), not
+a scheme color.
+
 ## Directory layout (planned)
 
 ```
