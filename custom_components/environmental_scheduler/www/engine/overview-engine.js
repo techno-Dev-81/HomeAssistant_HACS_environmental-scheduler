@@ -84,6 +84,11 @@ export class OverviewEngine {
     await this._doRefresh();
   }
 
+  /** Escape hatch for actions outside the polled house-status shape (e.g. room CRUD) — same timeout protection as the internal calls. */
+  async call(service, data = {}) {
+    return this._call(service, data);
+  }
+
   // ------------------------------------------------------------------ internal
 
   _start() {
