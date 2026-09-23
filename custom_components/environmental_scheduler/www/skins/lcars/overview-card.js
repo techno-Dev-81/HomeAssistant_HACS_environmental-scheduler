@@ -24,8 +24,16 @@
 // entities, sensors, people) — same fields as the default skin's card,
 // styled LCARS.
 
-import { OverviewEngine } from '../../engine/overview-engine.js';
-import { lcarsTokensCSS } from './lcars-tokens.js';
+// Static imports of sibling files aren't covered by the cache-busting query
+// param (?v=<sha>) put on this file's own Lovelace resource URL — the
+// browser can keep serving a stale cached copy of engine.js/lcars-tokens.js
+// indefinitely even after a hard reload, since their request URLs never
+// change. Forwarding the same ?v= as a dynamic import fixes that (found
+// live: engine.js kept serving pre-update code with no error, just missing
+// the new methods).
+const _cacheBust = new URL(import.meta.url).search;
+const { OverviewEngine } = await import(`../../engine/overview-engine.js${_cacheBust}`);
+const { lcarsTokensCSS } = await import(`./lcars-tokens.js${_cacheBust}`);
 
 const MODES = [
   { key: 'normal', label: 'NORMAL' },
