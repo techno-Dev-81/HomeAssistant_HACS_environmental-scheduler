@@ -596,27 +596,37 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
       }
       @keyframes lcars-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
+      /* Header/active-tab reuse the same dashboard button vars as .lcars-pill
+         above, not this skin's own color-scheme tokens — otherwise the
+         panel shows a color (lcars-tokens.js's --lcars-primary, e.g. salmon
+         for "classic") that appears nowhere else on the dashboard. */
       .lcars-panel-header { display: flex; align-items: stretch; }
       .lcars-panel-header-elbow {
-        width: 30px; background: var(--lcars-primary);
+        width: 30px; background: var(--lcars-card-top-color, var(--lcars-primary));
         border-top-left-radius: var(--lcars-radius-outer);
       }
       .lcars-panel-header-bar {
-        flex: 1; background: var(--lcars-primary); display: flex; align-items: center; justify-content: space-between;
+        flex: 1; background: var(--lcars-card-top-color, var(--lcars-primary)); display: flex; align-items: center; justify-content: space-between;
         padding: 10px 16px;
       }
-      .lcars-panel-title { color: var(--lcars-bg); font-size: 1.1rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-      .lcars-panel-close { border: none; background: none; cursor: pointer; color: var(--lcars-bg); font-size: 1.1rem; line-height: 1; padding: 4px; }
+      .lcars-panel-title { color: var(--lcars-background-text, #ffffff); font-size: 1.1rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+      .lcars-panel-close { border: none; background: none; cursor: pointer; color: var(--lcars-background-text, #ffffff); font-size: 1.1rem; line-height: 1; padding: 4px; }
       .lcars-panel-close:hover { opacity: 0.7; }
 
       .lcars-panel-tabs { display: flex; gap: 6px; padding: 12px 16px 0; flex-wrap: wrap; }
       .lcars-tab {
         border: none; cursor: pointer; padding: 6px 14px; font-family: inherit;
         font-weight: 700; letter-spacing: 0.05em; font-size: 0.72rem; text-transform: uppercase;
-        border-radius: 999px; background: var(--lcars-panel-bg); color: #ffffff; transition: filter 0.15s;
+        border-radius: 999px;
+        background: var(--lcars-card-button-color, var(--lcars-panel-bg));
+        color: var(--lcars-card-button-text, #ffffff);
+        transition: filter 0.15s;
       }
-      .lcars-tab.active { background: var(--lcars-primary); color: var(--lcars-bg); }
-      .lcars-tab:hover:not(.active) { filter: brightness(1.2); }
+      .lcars-tab.active {
+        background: var(--lcars-card-top-color, var(--lcars-primary));
+        color: var(--lcars-background-text, #ffffff);
+      }
+      .lcars-tab:hover:not(.active) { filter: brightness(1.15); }
 
       .lcars-panel-content { flex: 1; overflow-y: auto; padding: 16px; }
       .lcars-field-group { margin-bottom: 18px; }
@@ -625,15 +635,15 @@ class EnvironmentalSchedulerOverviewCardLCARS extends HTMLElement {
         width: 100%; box-sizing: border-box; background: var(--lcars-panel-bg); border: none; border-radius: var(--lcars-radius-inner);
         color: #ffffff; font-family: inherit; font-size: 0.9rem; padding: 8px 12px;
       }
-      .lcars-field-input:focus { outline: 2px solid var(--lcars-primary); }
+      .lcars-field-input:focus { outline: 2px solid var(--lcars-card-top-color, var(--lcars-primary)); }
 
       .lcars-picker-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
       .lcars-picker-row .lcars-entity-picker { flex: 1; }
       .lcars-remove-picker-btn {
         border: none; cursor: pointer; background: var(--lcars-panel-bg); color: #ffffff;
-        border-radius: 50%; width: 26px; height: 26px; flex-shrink: 0; font-size: 0.8rem;
+        border-radius: 50%; width: 26px; height: 26px; flex-shrink: 0; font-size: 0.8rem; transition: filter 0.15s;
       }
-      .lcars-remove-picker-btn:hover { background: var(--lcars-accent); }
+      .lcars-remove-picker-btn:hover { filter: brightness(1.6); }
       .lcars-add-picker-btn { margin-top: 4px; padding: 6px 16px; font-size: 0.7rem; }
 
       .lcars-person-check-list { display: flex; flex-direction: column; gap: 4px; }
