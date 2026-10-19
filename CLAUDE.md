@@ -1,8 +1,5 @@
 # Environmental Scheduler — Claude Guidelines
 
-## Core Rule
-**Only implement features that have been explicitly requested.** If something seems like a natural extension or improvement, ask first — do not add it. The user will ask when ready.
-
 ## Project
 Home Assistant custom integration for per-room temperature scheduling.
 - Repo: https://github.com/techno-Dev-81/environmental-scheduler

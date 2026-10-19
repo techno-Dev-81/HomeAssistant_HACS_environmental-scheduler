@@ -1,0 +1,5 @@
+Removed from CLAUDE.md during SDD onboarding on 2026-10-19 (migration list item #2, PROCESS).
+Still in force via /workspace/CLAUDE.md section 1 and SDD rule S1.
+
+## Core Rule
+**Only implement features that have been explicitly requested.** If something seems like a natural extension or improvement, ask first — do not add it. The user will ask when ready.
