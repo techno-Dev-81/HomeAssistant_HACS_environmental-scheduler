@@ -1,9 +1,9 @@
 # Onboarding migration list: Environmental Scheduler
 
-Status: APPROVED 2026-10-19
+Status: DONE
 Branch: beta
 Archive folder: .sdd/onboarding/archive
-Progress: 14
+Progress: 15
 Build output allowed: none
 Baseline: no build/test command (HACS integration, no build step; no manifest, runner script, CI or test files). Recorded as-is, user-confirmed 2026-10-19. Tests passed 0, failed 0, nothing run.
 
