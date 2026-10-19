@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime
 
 import ha_stubs
 
@@ -9,6 +10,7 @@ MODS = ha_stubs.load_modules()
 SchedulerStore = MODS["storage"].SchedulerStore
 Block = MODS["models"].Block
 Room = MODS["models"].Room
+Person = MODS["models"].Person
 ValidationError = MODS["models"].ValidationError
 DAYS_OF_WEEK = MODS["const"].DAYS_OF_WEEK
 
@@ -235,6 +237,117 @@ class HelperTests(unittest.TestCase):
         store = _store_with_occupancy("off")
         block = Block.new("07:00", "09:00", 18.0)
         self.assertEqual(store.resolve_block(block), (18.0, "schedule"))
+
+
+# 2024-01-01 is a Monday
+MONDAY_8AM = datetime(2024, 1, 1, 8, 0)
+ACTIVE_KEYS = {"active_block", "target_temperature", "reason"}
+
+
+def _active_store(occupancy: str | None = "on"):
+    """Store whose lounge has a Monday 07:00-09:00 block with an occupied temperature."""
+    store = _store_with_occupancy(occupancy)
+    room = store.get_room("lounge")
+    room.weekly_schedule["monday"] = [
+        Block.new("07:00", "09:00", 18.0, occupied_temperature=21.0)
+    ]
+    return store
+
+
+class GetActiveBlockTests(unittest.TestCase):
+    def test_vacation_unchanged(self) -> None:
+        store = _active_store()
+        store._config.house_mode = "vacation"
+        result = store.get_active_block("lounge", MONDAY_8AM)
+        self.assertEqual(result, {
+            "active_block": None,
+            "target_temperature": store._config.vacation_temp,
+            "reason": "vacation",
+        })
+
+    def test_away_unchanged(self) -> None:
+        store = _active_store()
+        store._config.house_mode = "away"
+        result = store.get_active_block("lounge", MONDAY_8AM)
+        self.assertEqual(result, {
+            "active_block": None,
+            "target_temperature": store._config.global_away_temp,
+            "reason": "away",
+        })
+
+    def test_persons_away_unchanged(self) -> None:
+        store = _active_store()
+        store._config.persons = [Person(id="dave", name="Dave", ha_entity="person.dave")]
+        store._hass.states.set("person.dave", "not_home")
+        store.get_room("lounge").persons = ["dave"]
+        result = store.get_active_block("lounge", MONDAY_8AM)
+        self.assertEqual(result, {
+            "active_block": None,
+            "target_temperature": store._config.global_away_temp,
+            "reason": "persons_away",
+        })
+
+    def test_schedule_occupied_uses_occupied_temperature(self) -> None:
+        store = _active_store("on")
+        result = store.get_active_block("lounge", MONDAY_8AM)
+        self.assertEqual(set(result), ACTIVE_KEYS)
+        self.assertEqual(result["target_temperature"], 21.0)
+        self.assertEqual(result["reason"], "schedule_occupied")
+        self.assertEqual(result["active_block"]["start_time"], "07:00")
+
+    def test_schedule_not_occupied_uses_base_temperature(self) -> None:
+        store = _active_store("off")
+        result = store.get_active_block("lounge", MONDAY_8AM)
+        self.assertEqual(set(result), ACTIVE_KEYS)
+        self.assertEqual(result["target_temperature"], 18.0)
+        self.assertEqual(result["reason"], "schedule")
+
+    def test_schedule_without_occupied_temperature_uses_base(self) -> None:
+        store = _store_with_occupancy("on")
+        store.get_room("lounge").weekly_schedule["monday"] = [
+            Block.new("07:00", "09:00", 19.5)
+        ]
+        result = store.get_active_block("lounge", MONDAY_8AM)
+        self.assertEqual(result["target_temperature"], 19.5)
+        self.assertEqual(result["reason"], "schedule")
+
+    def test_following_room_uses_house_block(self) -> None:
+        store = _active_store("off")
+        house_block = Block.new("07:30", "10:00", 20.0, occupied_temperature=22.0)
+        store._house_schedule["monday"] = [house_block]
+        room = store.get_room("lounge")
+        room.follow_house_schedule = True
+        result = store.get_active_block("lounge", MONDAY_8AM)
+        self.assertEqual(result["active_block"], house_block.to_dict())
+        self.assertEqual(result["target_temperature"], 20.0)
+        self.assertEqual(result["reason"], "schedule")
+        store._hass.states.set(OCCUPANCY_ENTITY, "on")
+        result = store.get_active_block("lounge", MONDAY_8AM)
+        self.assertEqual(result["target_temperature"], 22.0)
+        self.assertEqual(result["reason"], "schedule_occupied")
+
+    def test_following_room_without_active_house_block_returns_room_fallback(self) -> None:
+        store = _active_store("on")
+        store._house_schedule["monday"] = [Block.new("18:00", "22:00", 20.0)]
+        room = store.get_room("lounge")
+        room.fallback_temp = 15.5
+        room.follow_house_schedule = True
+        result = store.get_active_block("lounge", MONDAY_8AM)
+        # The room's own active block is ignored while following
+        self.assertEqual(result, {
+            "active_block": None,
+            "target_temperature": 15.5,
+            "reason": "fallback",
+        })
+
+    def test_fallback_keys_unchanged(self) -> None:
+        store = _active_store("on")
+        result = store.get_active_block("lounge", datetime(2024, 1, 1, 12, 0))
+        self.assertEqual(result, {
+            "active_block": None,
+            "target_temperature": store._config.global_fallback_temp,
+            "reason": "fallback",
+        })
 
 
 if __name__ == "__main__":

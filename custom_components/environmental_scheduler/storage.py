@@ -219,14 +219,19 @@ class SchedulerStore:
                     "reason": "persons_away",
                 }
 
-        # 4. Follow schedule
+        # 4. Follow schedule (house blocks when the room follows the house schedule)
         day = at.strftime("%A").lower()
-        block = room.get_active_block(day, at.time())
+        now = at.time()
+        block = next(
+            (b for b in self.effective_days(room).get(day, []) if b.enabled and b.is_active_at(now)),
+            None,
+        )
         if block:
+            target_temperature, reason = self.resolve_block(block)
             return {
                 "active_block": block.to_dict(),
-                "target_temperature": block.temperature,
-                "reason": "schedule",
+                "target_temperature": target_temperature,
+                "reason": reason,
             }
 
         # 5. No active block — fallback
