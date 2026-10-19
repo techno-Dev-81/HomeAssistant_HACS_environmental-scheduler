@@ -1,0 +1,4 @@
+{
+  "github": { "enabled": false },
+  "publish": { "approval": "per-command" }
+}
