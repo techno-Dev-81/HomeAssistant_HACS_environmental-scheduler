@@ -82,5 +82,54 @@ class PreBlockStartTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(events[0]["block"], room_block.to_dict())
 
 
+class PreHeatSetpointTests(unittest.IsolatedAsyncioTestCase):
+    # 2026-10-19 is a Monday; 06:30 is 30 minutes before the 07:00 block
+    NOW = datetime(2026, 10, 19, 6, 30)
+    OCCUPANCY_ENTITY = "binary_sensor.house_occupied"
+
+    def _setup(self, occupancy: str, occupied_temperature: float | None = 21.0):
+        hass, scheduler = _new_scheduler()
+        store = scheduler._store
+        store.get_config().node_red_mode = False
+        store.get_config().house_occupancy_entity = self.OCCUPANCY_ENTITY
+        hass.states.set(self.OCCUPANCY_ENTITY, occupancy)
+        room = Room(
+            id="lounge", name="Lounge", climate_entities=["climate.lounge"],
+            preheat_offset_minutes=30,
+        )
+        room.weekly_schedule["monday"] = [
+            Block.new("07:00", "09:00", 18.0, occupied_temperature=occupied_temperature)
+        ]
+        store.add_room(room)
+        return hass, scheduler
+
+    def _set_temperatures(self, hass) -> list[float]:
+        return [
+            call["data"]["temperature"] for call in hass.services.calls
+            if call["domain"] == "climate" and call["service"] == "set_temperature"
+        ]
+
+    async def test_occupied_sets_occupied_temperature(self) -> None:
+        hass, scheduler = self._setup("on")
+        await scheduler._tick(self.NOW)
+        self.assertEqual(self._set_temperatures(hass)[0], 21.0)
+
+    async def test_not_occupied_sets_base_temperature(self) -> None:
+        hass, scheduler = self._setup("off")
+        await scheduler._tick(self.NOW)
+        self.assertEqual(self._set_temperatures(hass)[0], 18.0)
+
+    async def test_no_occupied_value_sets_base_temperature(self) -> None:
+        hass, scheduler = self._setup("on", occupied_temperature=None)
+        await scheduler._tick(self.NOW)
+        self.assertEqual(self._set_temperatures(hass)[0], 18.0)
+
+    async def test_current_state_applied_after_preheat_in_same_tick(self) -> None:
+        hass, scheduler = self._setup("on")
+        await scheduler._tick(self.NOW)
+        current = scheduler._store.get_active_block("lounge", self.NOW)["target_temperature"]
+        self.assertEqual(self._set_temperatures(hass), [21.0, current])
+
+
 if __name__ == "__main__":
     unittest.main()

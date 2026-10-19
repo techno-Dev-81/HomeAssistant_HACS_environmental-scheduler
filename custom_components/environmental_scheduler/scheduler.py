@@ -126,8 +126,10 @@ class EnvironmentalScheduler:
         if room.entity_type == "hot_water":
             await self._control_hot_water(entities[0], "schedule")
         else:
+            # Occupied value when it applies, else the base temperature
+            temperature, _ = self._store.resolve_block(block)
             for entity_id in entities:
-                await self._control_climate(entity_id, block.temperature)
+                await self._control_climate(entity_id, temperature)
 
     async def _control_climate(self, entity_id: str, temperature: float) -> None:
         try:
