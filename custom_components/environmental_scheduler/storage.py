@@ -310,7 +310,7 @@ class SchedulerStore:
         for day_offset in range(7):
             check_dt = at + timedelta(days=day_offset)
             day_name = check_dt.strftime("%A").lower()
-            for block in room.get_day(day_name):
+            for block in self.effective_days(room).get(day_name, []):
                 if not block.enabled:
                     continue
                 block_end_dt = check_dt.replace(

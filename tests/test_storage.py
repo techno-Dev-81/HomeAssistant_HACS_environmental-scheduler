@@ -350,5 +350,37 @@ class GetActiveBlockTests(unittest.TestCase):
         })
 
 
+class GetUpcomingBlocksTests(unittest.TestCase):
+    def _store(self):
+        store = _store_with_room()
+        room = store.get_room("lounge")
+        room.weekly_schedule["monday"] = [Block.new("09:00", "10:00", 18.0)]
+        store._house_schedule["monday"] = [Block.new("18:00", "22:00", 20.0)]
+        return store, room
+
+    def test_non_following_room_returns_room_blocks(self) -> None:
+        store, room = self._store()
+        result = store.get_upcoming_blocks("lounge", MONDAY_8AM, limit=1)
+        self.assertEqual(result, [{
+            "day": "monday",
+            "date": "2024-01-01",
+            "block": room.weekly_schedule["monday"][0].to_dict(),
+            "preheat_start": "09:00",
+        }])
+
+    def test_following_room_returns_house_blocks(self) -> None:
+        store, room = self._store()
+        room.follow_house_schedule = True
+        room.preheat_offset_minutes = 30
+        result = store.get_upcoming_blocks("lounge", MONDAY_8AM, limit=1)
+        # The room's own preheat offset still applies to house blocks
+        self.assertEqual(result, [{
+            "day": "monday",
+            "date": "2024-01-01",
+            "block": store._house_schedule["monday"][0].to_dict(),
+            "preheat_start": "17:30",
+        }])
+
+
 if __name__ == "__main__":
     unittest.main()
