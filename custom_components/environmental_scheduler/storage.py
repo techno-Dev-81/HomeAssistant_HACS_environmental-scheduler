@@ -83,20 +83,30 @@ class SchedulerStore:
     # Blocks
     # ------------------------------------------------------------------
 
-    def get_blocks(self, room_id: str, day: str | None = None) -> list[Block]:
-        room = self._rooms.get(room_id)
+    def _days_for(self, target: str | None) -> dict[str, list[Block]]:
+        """Return the weekly schedule for a room id, or the house schedule for None."""
+        if target is None:
+            return self._house_schedule
+        room = self._rooms.get(target)
         if not room:
-            raise ValueError(f"Room '{room_id}' not found")
-        if day:
-            return room.get_day(day)
-        return [b for blocks in room.weekly_schedule.values() for b in blocks]
+            raise ValueError(f"Room '{target}' not found")
+        return room.weekly_schedule
 
-    def check_overlaps(self, room_id: str, day: str, new_block: Block) -> list[OverlapInfo]:
-        room = self._rooms.get(room_id)
-        if not room:
-            raise ValueError(f"Room '{room_id}' not found")
+    def get_day(self, target: str | None, day: str) -> list[Block]:
+        return self._days_for(target).get(day, [])
+
+    def set_day(self, target: str | None, day: str, blocks: list[Block]) -> None:
+        self._days_for(target)[day] = blocks
+
+    def get_blocks(self, target: str | None, day: str | None = None) -> list[Block]:
+        days = self._days_for(target)
+        if day:
+            return days.get(day, [])
+        return [b for blocks in days.values() for b in blocks]
+
+    def check_overlaps(self, target: str | None, day: str, new_block: Block) -> list[OverlapInfo]:
         conflicts = []
-        for existing in room.get_day(day):
+        for existing in self.get_day(target, day):
             if existing.id == new_block.id:
                 continue
             if existing.overlaps(new_block):
@@ -122,6 +132,7 @@ class SchedulerStore:
                 end_time=new_block.start_time,
                 temperature=existing.temperature,
                 enabled=existing.enabled,
+                occupied_temperature=existing.occupied_temperature,
             )
         return Block(
             id=existing.id,
@@ -129,24 +140,23 @@ class SchedulerStore:
             end_time=existing.end_time,
             temperature=existing.temperature,
             enabled=existing.enabled,
+            occupied_temperature=existing.occupied_temperature,
         )
 
     def commit_block(
         self,
-        room_id: str,
+        target: str | None,
         day: str,
         new_block: Block,
         confirmed_conflicts: list[OverlapInfo],
     ) -> None:
         new_block.validate()
-        room = self._rooms.get(room_id)
-        if not room:
-            raise ValueError(f"Room '{room_id}' not found")
+        days = self._days_for(target)
 
         conflict_ids = {info.block.id for info in confirmed_conflicts}
         updated: list[Block] = []
 
-        for b in room.get_day(day):
+        for b in days.get(day, []):
             if b.id == new_block.id:
                 continue
             if b.id not in conflict_ids:
@@ -158,17 +168,15 @@ class SchedulerStore:
 
         updated.append(new_block)
         updated.sort(key=lambda b: b.start())
-        room.weekly_schedule[day] = updated
+        days[day] = updated
 
-    def delete_block(self, room_id: str, day: str, block_id: str) -> None:
-        room = self._rooms.get(room_id)
-        if not room:
-            raise ValueError(f"Room '{room_id}' not found")
-        blocks = room.get_day(day)
+    def delete_block(self, target: str | None, day: str, block_id: str) -> None:
+        days = self._days_for(target)
+        blocks = days.get(day, [])
         new_blocks = [b for b in blocks if b.id != block_id]
         if len(new_blocks) == len(blocks):
             raise ValueError(f"Block '{block_id}' not found")
-        room.weekly_schedule[day] = new_blocks
+        days[day] = new_blocks
 
     # ------------------------------------------------------------------
     # Active block resolution
