@@ -1,6 +1,6 @@
 # Onboarding migration list: Environmental Scheduler
 
-Status: DRAFT
+Status: APPROVED 2026-10-19
 Branch: beta
 Archive folder: .sdd/onboarding/archive
 Progress: none
@@ -16,14 +16,14 @@ Baseline: no build/test command (HACS integration, no build step; no manifest, r
 | 4 | CLAUDE.md: "Project", repo URL | in-repo | MIGRATE | FACT, keep | Missing field M1 | keep |
 | 5 | CLAUDE.md: "Project", active branch `beta` | in-repo | MIGRATE | FACT, keep | constitution 2. Working branch pattern (`beta`, one long-lived branch); status `branch` | keep |
 | 6 | CLAUDE.md: "Project", main branch for PRs/releases `main` | in-repo | MIGRATE | FACT, keep | constitution 2. Default branch | keep |
-| 7 | CLAUDE.md: "Project", version tag format and "tag after each logical batch" | in-repo | CONFLICT | Open question Q1: format is FACT, cadence may be PROCESS | Missing field M3 (format); constitution 5. Branch and release policy (cadence, if kept) | keep, or archive removed text for the cadence part |
+| 7 | CLAUDE.md: "Project", version tag format and "tag after each logical batch" | in-repo | CONFLICT | FACT, keep (Q1: cadence is a project release rule) | Missing field M3 (format); constitution 5. Branch and release policy (cadence) | keep |
 | 8 | CLAUDE.md: "Architecture" (integration, Node-RED, cards, options flow responsibilities) | in-repo | MIGRATE | FACT, keep | constitution 2. Language and stack; 4. Standards | keep |
 | 9 | CLAUDE.md: "Key Decisions", node_red_mode false/true | in-repo | MIGRATE | FACT, keep | constitution 4. Standards | keep |
 | 10 | CLAUDE.md: "Key Decisions", entity_type derived, not stored | in-repo | MIGRATE | FACT, keep (see conflict C10) | constitution 4. Standards | keep |
 | 11 | CLAUDE.md: "Key Decisions", presence logic (ANY home heats, ALL away gives away temp) | in-repo | MIGRATE | FACT, keep | constitution 4. Standards | keep |
 | 12 | CLAUDE.md: "Key Decisions", preheat_offset_minutes is Node-RED learned, not UI-configurable | in-repo | MIGRATE | FACT, keep (see conflict C8) | constitution 4. Standards | keep |
-| 13 | CLAUDE.md: "Key Decisions", door/window sensor config not implemented, do not add unasked | in-repo | CONFLICT | Open question Q2: state is FACT, "do not add" is an obligation | constitution 4. Standards or 6. Out of scope | keep |
-| 14 | CLAUDE.md: "Key Decisions", per-room away/fallback overrides not in options flow, do not add unasked | in-repo | CONFLICT | Open question Q2 (same split as #13; see C11) | constitution 4. Standards or 6. Out of scope | keep |
+| 13 | CLAUDE.md: "Key Decisions", door/window sensor config not implemented, do not add unasked | in-repo | CONFLICT | FACT, keep (Q2) | constitution 6. Out of scope | keep |
+| 14 | CLAUDE.md: "Key Decisions", per-room away/fallback overrides not in options flow, do not add unasked | in-repo | CONFLICT | FACT, keep (Q2; see C11) | constitution 6. Out of scope | keep |
 | 15 | CLAUDE.md: "Stack" (dataclasses, HA Storage, voluptuous, vanilla JS no build step, flows, services/events) | in-repo | MIGRATE | FACT, keep | constitution 2. Language and stack; Build command `none`; Unit test command `none` | keep |
 | 16 | CLAUDE.md: "File Layout" | in-repo | MIGRATE | FACT, keep in CLAUDE.md as reference (out of date, see C12; not fixed during onboarding) | none | keep |
 | 17 | README.md: title and intro line | in-repo | MIGRATE | FACT, keep (mentions profiles, see C1) | constitution 1. Purpose (input, profile wording excluded) | keep |
@@ -32,23 +32,23 @@ Baseline: no build/test command (HACS integration, no build step; no manifest, r
 | 20 | README.md: "Setup" | in-repo | MIGRATE | FACT, keep (out of date, C5, C7) | none | keep |
 | 21 | README.md: "Quick Start" | in-repo | MIGRATE | FACT, keep (out of date, C1, C2, C4) | none | keep |
 | 22 | README.md: "Services" | in-repo | MIGRATE | FACT, keep (out of date vs services.yaml, C1) | none | keep |
-| 23 | README.md: "Rooms" (default 12) | in-repo | CONFLICT | Open question Q3 | none until answered | keep |
+| 23 | README.md: "Rooms" (default 12) | in-repo | CONFLICT | keep; Q3 stays open (not constitution input) | none | keep |
 | 24 | README.md: "Profiles" | in-repo | MIGRATE | FACT, keep (out of date, C1); not constitution input | none | keep |
 | 25 | README.md: "Configuration", default temperatures | in-repo | MIGRATE | FACT, keep (C2, C3); not constitution input | none | keep |
 | 26 | README.md: "Configuration", temperature constraints (5 to 35°C, 0.5°C, 2°C buffer) | in-repo | MIGRATE | FACT, keep | constitution 4. Standards | keep |
 | 27 | README.md: "Configuration", block rules (30 min minimum, no overlaps, Mon to Sun) | in-repo | MIGRATE | FACT, keep | constitution 4. Standards | keep |
 | 28 | README.md: "Integration with Node-RED" | in-repo | MIGRATE | FACT, keep (user doc) | none | keep |
-| 29 | README.md: "Future Features (Roadmap)" | in-repo | CONFLICT | Open question Q4 (C6, C13) | none, or constitution 6. Out of scope | keep |
+| 29 | README.md: "Future Features (Roadmap)" | in-repo | CONFLICT | FACT, keep in README (Q4; C6, C13 stay open) | none | keep |
 | 30 | README.md: "Troubleshooting" | in-repo | MIGRATE | FACT, keep | none | keep |
 | 31 | README.md: "Support" | in-repo | MIGRATE | FACT, keep | Missing field M2 | keep |
 | 32 | README.md: "License" (MIT) | in-repo | MIGRATE | FACT, keep | constitution 4. Standards | keep |
 | 33 | README.md: "Contributing" (open an issue or PR) | in-repo | MIGRATE | FACT, keep (external contributor guidance, not an internal process) | none | keep |
-| 34 | docs/card-architecture.md (whole file) | in-repo | CONFLICT | Proposed KEEP as reference/design doc; not a spec chain. Header "Planned" is out of date (C14) | none | keep |
-| 35 | docs/card-architecture.md: parity rule, engine must not import skins | in-repo | CONFLICT | Open question Q5: constitution constraint or doc only | constitution 4. Standards, if confirmed | keep |
-| 36 | docs/card-architecture.md: "Color rules", "confirm with the maintainer first" | in-repo | CONFLICT | Open question Q5: design rules are FACT, the confirmation step is an obligation | constitution 4. Standards, if confirmed | keep |
-| 37 | docs/card-architecture.md: "Adding a new skin", steps 4 and 5 (parity before merge, document here) | in-repo | CONFLICT | Open question Q5: steps 1 to 3 FACT; steps 4 and 5 PROCESS or project convention | none, or constitution 4. Standards | keep, or archive removed text |
-| 38 | specification.md (whole file, single product spec, no amendments/designs/tracking) | in-repo | CONFLICT | Open question Q6: KEEP as reference, or MIGRATE to spec 001 | none (KEEP) or `.sdd/specs/001-*` (MIGRATE) | keep (KEEP) or archive whole (MIGRATE) |
-| 39 | specification.md: "Status: LOCKED. No ambiguity. No fluff." | in-repo | CONFLICT | PROCESS (approval marker). Depends on #38 | none | archived with #38 if MIGRATE; else open question Q6 |
+| 34 | docs/card-architecture.md (whole file) | in-repo | CONFLICT | KEEP as reference/design doc; not a spec chain. Header "Planned" is out of date (C14, stays open) | none | keep |
+| 35 | docs/card-architecture.md: parity rule, engine must not import skins | in-repo | CONFLICT | FACT, keep (Q5) | constitution 4. Standards | keep |
+| 36 | docs/card-architecture.md: "Color rules", "confirm with the maintainer first" | in-repo | CONFLICT | keep in the doc as a project convention (Q5); not constitution input | none | keep |
+| 37 | docs/card-architecture.md: "Adding a new skin", steps 4 and 5 (parity before merge, document here) | in-repo | CONFLICT | keep in the doc as a project convention (Q5) | none | keep |
+| 38 | specification.md (whole file, single product spec, no amendments/designs/tracking) | in-repo | CONFLICT | KEEP as reference (Q6); not converted | none | keep |
+| 39 | specification.md: "Status: LOCKED. No ambiguity. No fluff." | in-repo | CONFLICT | keep, part of the reference file #38 (Q6) | none | keep |
 | 40 | .gitignore | in-repo | KEEP | keep | none | keep |
 | 41 | hacs.json | in-repo | KEEP | keep (name "Environmental Scheduler", render_readme true) | none | keep |
 | 42 | custom_components/environmental_scheduler/manifest.json | in-repo | KEEP | keep (domain environmental_scheduler, version 0.0.1, codeowner @techno-Dev-81, local_push, config_flow) | none | keep |
@@ -83,15 +83,14 @@ Prefer a configuration field as the target over prose.
 | M3 | Version tag format `v0.0.x` patch, `v0.x.0` feature | constitution 5. Branch and release policy | `release.tag_format` |
 | M4 | Data stored in HA storage `.storage/environmental_scheduler` | constitution 2. Project facts (extra row) | `data.storage_path` |
 
-PROCESS rules to be removed (step 10): CLAUDE.md "Core Rule" (#2). Pending Q1, Q5, Q6: tag cadence (#7), card-architecture.md "Adding a new skin" steps 4 and 5 (#37), specification.md LOCKED marker (#39).
+PROCESS rules to be removed (step 10): CLAUDE.md "Core Rule" (#2), saved as `.sdd/onboarding/archive/removed-CLAUDE.md.txt`. Nothing removed from README.md or docs.
 
 ## Spec chains
-Depends on #38 (Q6). KEEP: skipped, nothing to convert. MIGRATE: one base spec, no amendments, plan or tasks.
-| Spec number | Base and amendments | Converted to | Validator result | Gaps |
-|---|---|---|---|---|
-| 001 (only if Q6 = MIGRATE) | specification.md, no amendments | .sdd/specs/001-<slug> | not run | No content for: 2. Pre-spec gate, 4. Preserved behaviours, 5. Notification matrix (HA events only), 6. Access/gating matrix, 7. Navigation changes, 10. Interview answers. Conflicts C7, C8, C10, C11 unresolved |
+skipped: nothing found (no spec chain; specification.md kept as reference per Q6). Step 9 skipped.
 
 ## Open questions
+Answered at approval 2026-10-19 (user accepted the recommendations): Q1 cadence kept as release rule; Q2 Out of scope; Q3 left open; Q4 roadmap stays in README; Q5 parity and import rules to constitution standards, colour-confirm and skin steps kept as doc conventions; Q6 specification.md kept as reference; Q7 GitHub defaults kept.
+
 - Q1 (#7): Is "tag after each logical batch of changes" a project release rule (constitution 5) or a process rule to remove?
 - Q2 (#13, #14): Are the "not implemented, do not add without being asked" bullets standing constitution constraints, or out-of-scope entries for future specs?
 - Q3 (#23): Does the integration create 12 default rooms? The spec says rooms are created in the dashboard.
@@ -126,5 +125,5 @@ None found.
 SDD never changes these (spec 002 amendment 002.1).
 
 ## Approved list for archive
-Depends on #38 (Q6). KEEP: skipped, nothing found to archive. MIGRATE: specification.md (archive whole).
+skipped: nothing found (no file is moved; step 12 skipped, no MOVED.txt, so step 13b and its step 14 rerun are skipped).
 The archive list file has this format: the first line is `Status: APPROVED YYYY-MM-DD`, then one project-relative path per line.
