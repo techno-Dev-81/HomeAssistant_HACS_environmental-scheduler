@@ -63,7 +63,8 @@ class EnvironmentalScheduler:
         offset = room.preheat_offset_minutes
         day = now.strftime("%A").lower()
 
-        for block in room.get_day(day):
+        # A room that follows the house schedule uses the house blocks here
+        for block in self._store.effective_days(room).get(day, []):
             if not block.enabled:
                 continue
 

@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime
 
 import ha_stubs
 
 MODS = ha_stubs.load_modules()
 EnvironmentalScheduler = MODS["scheduler"].EnvironmentalScheduler
 SchedulerStore = MODS["storage"].SchedulerStore
+Block = MODS["models"].Block
+Room = MODS["models"].Room
+DOMAIN = MODS["const"].DOMAIN
 
 
 def _new_scheduler():
@@ -36,6 +40,46 @@ class HotWaterControlTests(unittest.IsolatedAsyncioTestCase):
                 call = await self._service_for("switch.hot_water", reason)
                 self.assertEqual(call["domain"], "switch")
                 self.assertEqual(call["service"], "turn_off")
+
+
+class PreBlockStartTests(unittest.IsolatedAsyncioTestCase):
+    # 2026-10-19 is a Monday; 06:30 is 30 minutes before the 07:00 blocks
+    NOW = datetime(2026, 10, 19, 6, 30)
+
+    def _setup(self, follow: bool):
+        hass, scheduler = _new_scheduler()
+        store = scheduler._store
+        store.get_config().node_red_mode = True
+        room = Room(
+            id="lounge", name="Lounge", climate_entities=["climate.lounge"],
+            preheat_offset_minutes=30, follow_house_schedule=follow,
+        )
+        room_block = Block.new("07:00", "09:00", 17.0)
+        room.weekly_schedule["monday"] = [room_block]
+        store.add_room(room)
+        house_block = Block.new("07:00", "09:00", 18.0, occupied_temperature=21.0)
+        store._house_schedule["monday"] = [house_block]
+        return hass, scheduler, room_block, house_block
+
+    def _pre_block_events(self, hass) -> list[dict]:
+        return [data for name, data in hass.bus.events if name == f"{DOMAIN}.pre_block_start"]
+
+    async def test_following_room_fires_for_house_block(self) -> None:
+        hass, scheduler, _, house_block = self._setup(follow=True)
+        await scheduler._tick(self.NOW)
+        events = self._pre_block_events(hass)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["room"], "lounge")
+        self.assertEqual(events[0]["block"]["id"], house_block.id)
+        self.assertEqual(events[0]["block"]["occupied_temperature"], 21.0)
+
+    async def test_non_following_room_fires_for_own_block(self) -> None:
+        hass, scheduler, room_block, _ = self._setup(follow=False)
+        await scheduler._tick(self.NOW)
+        events = self._pre_block_events(hass)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["room"], "lounge")
+        self.assertEqual(events[0]["block"], room_block.to_dict())
 
 
 if __name__ == "__main__":

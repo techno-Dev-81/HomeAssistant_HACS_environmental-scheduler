@@ -28,7 +28,7 @@ Paths are relative to `custom_components/environmental_scheduler/` unless they s
 | ID | Task | Done when | Depends | Status | Evidence |
 |---|---|---|---|---|---|
 | T2.1 | `_control_hot_water`: on for `schedule` and `schedule_occupied`, off otherwise | UT in `tests/test_scheduler.py`: recorded `services.async_call` is `turn_on` for both schedule reasons and `turn_off` for `away`, `fallback`, `vacation`, `persons_away`; count rises | T1.7 | done | UT 55 run OK (53 before); build none; reviewer CONFORMS, 0 BLOCKING |
-| T2.2 | `_process_room` iterates `effective_days(room)` for today | UT in `tests/test_scheduler.py`: following room fires `pre_block_start` for a house block with `room` = the room id and `block.occupied_temperature` present; non-following unchanged; count rises | T1.6 | todo | |
+| T2.2 | `_process_room` iterates `effective_days(room)` for today | UT in `tests/test_scheduler.py`: following room fires `pre_block_start` for a house block with `room` = the room id and `block.occupied_temperature` present; non-following unchanged; count rises | T1.6 | done | UT 57 run OK (55 before); build none; reviewer CONFORMS, 0 BLOCKING |
 | T2.3 | `_apply_block` sets the temperature from `resolve_block` at pre-heat | UT in `tests/test_scheduler.py`: occupied at pre-heat sets `occupied_temperature`; not occupied or no occupied value sets base; `_apply_current_state` still runs after it in the same tick (PB11); count rises | T2.2 | todo | |
 | T2.4 | Test only: occupancy change during an active block | UT in `tests/test_scheduler.py`: with `node_red_mode` false, tick with occupancy off sets base, flip state to `on`, next tick sets occupied temperature (R8); count rises | T2.3 | todo | |
 
