@@ -140,7 +140,7 @@ class EnvironmentalScheduler:
             _LOGGER.exception("[EnvScheduler] Failed to set temperature on %s", entity_id)
 
     async def _control_hot_water(self, entity_id: str, reason: str) -> None:
-        active = reason == "schedule"
+        active = reason in ("schedule", "schedule_occupied")
         domain = _WATER_HEATER_DOMAIN if entity_id.startswith("water_heater.") else _SWITCH_DOMAIN
         service = "turn_on" if active else "turn_off"
         try:
