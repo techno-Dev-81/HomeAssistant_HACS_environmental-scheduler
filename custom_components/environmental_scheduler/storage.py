@@ -243,6 +243,26 @@ class SchedulerStore:
             return False  # unknown state → assume home (safe default)
         return state.state not in ("home",)
 
+    def effective_days(self, room: Room) -> dict[str, list[Block]]:
+        """Return the house schedule when the room follows it, else the room's own."""
+        if room.follow_house_schedule:
+            return self._house_schedule
+        return room.weekly_schedule
+
+    def house_occupied(self) -> bool:
+        """True only when the occupancy entity is set and its state is 'on'."""
+        entity_id = self._config.house_occupancy_entity
+        if not entity_id:
+            return False
+        state = self._hass.states.get(entity_id)
+        return state is not None and state.state == "on"
+
+    def resolve_block(self, block: Block) -> tuple[float, str]:
+        """Return (temperature, reason) for a block, using the occupied value when it applies."""
+        if block.occupied_temperature is not None and self.house_occupied():
+            return block.occupied_temperature, "schedule_occupied"
+        return block.temperature, "schedule"
+
     # ------------------------------------------------------------------
     # Persons
     # ------------------------------------------------------------------

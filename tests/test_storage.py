@@ -161,5 +161,81 @@ class TargetBlockOperationTests(unittest.TestCase):
             store.commit_block("missing", "monday", Block.new("07:00", "09:00", 18.0), [])
 
 
+OCCUPANCY_ENTITY = "binary_sensor.house_occupied"
+
+
+def _store_with_occupancy(state: str | None):
+    """Store with the occupancy entity configured; state None leaves it missing."""
+    store = _store_with_room()
+    store._config.house_occupancy_entity = OCCUPANCY_ENTITY
+    if state is not None:
+        store._hass.states.set(OCCUPANCY_ENTITY, state)
+    return store
+
+
+class HelperTests(unittest.TestCase):
+    def test_effective_days_non_following_uses_room_schedule(self) -> None:
+        store = _store_with_room()
+        room = store.get_room("lounge")
+        room.weekly_schedule["monday"] = [Block.new("06:00", "07:00", 19.0)]
+        store._house_schedule["monday"] = [Block.new("18:00", "22:00", 20.0)]
+        self.assertIs(store.effective_days(room), room.weekly_schedule)
+
+    def test_effective_days_following_uses_house_schedule(self) -> None:
+        store = _store_with_room()
+        room = store.get_room("lounge")
+        room_blocks = [Block.new("06:00", "07:00", 19.0)]
+        room.weekly_schedule["monday"] = room_blocks
+        store._house_schedule["monday"] = [Block.new("18:00", "22:00", 20.0)]
+        room.follow_house_schedule = True
+        self.assertIs(store.effective_days(room), store._house_schedule)
+        # The room's own blocks stay in storage unchanged (R4)
+        self.assertEqual(room.weekly_schedule["monday"], room_blocks)
+
+    def test_house_occupied_on(self) -> None:
+        self.assertTrue(_store_with_occupancy("on").house_occupied())
+
+    def test_house_occupied_off(self) -> None:
+        self.assertFalse(_store_with_occupancy("off").house_occupied())
+
+    def test_house_occupied_unavailable(self) -> None:
+        self.assertFalse(_store_with_occupancy("unavailable").house_occupied())
+
+    def test_house_occupied_unknown(self) -> None:
+        self.assertFalse(_store_with_occupancy("unknown").house_occupied())
+
+    def test_house_occupied_missing_entity(self) -> None:
+        self.assertFalse(_store_with_occupancy(None).house_occupied())
+        store = _store_with_occupancy("on")
+        store._hass.states.remove(OCCUPANCY_ENTITY)
+        self.assertFalse(store.house_occupied())
+
+    def test_house_occupied_unset(self) -> None:
+        store = _store_with_room()
+        store._hass.states.set(OCCUPANCY_ENTITY, "on")
+        self.assertIsNone(store._config.house_occupancy_entity)
+        self.assertFalse(store.house_occupied())
+
+    def test_resolve_block_with_occupied_temperature_when_occupied(self) -> None:
+        store = _store_with_occupancy("on")
+        block = Block.new("07:00", "09:00", 18.0, occupied_temperature=21.0)
+        self.assertEqual(store.resolve_block(block), (21.0, "schedule_occupied"))
+
+    def test_resolve_block_with_occupied_temperature_when_not_occupied(self) -> None:
+        store = _store_with_occupancy("off")
+        block = Block.new("07:00", "09:00", 18.0, occupied_temperature=21.0)
+        self.assertEqual(store.resolve_block(block), (18.0, "schedule"))
+
+    def test_resolve_block_without_occupied_temperature_when_occupied(self) -> None:
+        store = _store_with_occupancy("on")
+        block = Block.new("07:00", "09:00", 18.0)
+        self.assertEqual(store.resolve_block(block), (18.0, "schedule"))
+
+    def test_resolve_block_without_occupied_temperature_when_not_occupied(self) -> None:
+        store = _store_with_occupancy("off")
+        block = Block.new("07:00", "09:00", 18.0)
+        self.assertEqual(store.resolve_block(block), (18.0, "schedule"))
+
+
 if __name__ == "__main__":
     unittest.main()
