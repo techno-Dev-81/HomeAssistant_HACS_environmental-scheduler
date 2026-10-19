@@ -137,6 +137,23 @@ def _get_store(hass: HomeAssistant) -> SchedulerStore:
     return next(iter(entries.values()))
 
 
+def _resolve_target(store: SchedulerStore, data: dict) -> str | None:
+    """Return the block target: None for the house schedule, else an existing room id."""
+    if data.get(ATTR_SCHEDULE) == "house":
+        return None
+    room_id = data.get(ATTR_ROOM)
+    if not room_id:
+        raise ServiceValidationError("'room' is required unless schedule is 'house'")
+    if store.get_room(room_id) is None:
+        raise ServiceValidationError(f"Room '{room_id}' not found")
+    return room_id
+
+
+def _target_event_data(target: str | None) -> dict:
+    """block_changed keys identifying the edited schedule."""
+    return {"schedule": "house" if target is None else "room", "room": target}
+
+
 def register_services(hass: HomeAssistant) -> None:
 
     async def handle_get_rooms(call: ServiceCall) -> ServiceResponse:
@@ -220,26 +237,29 @@ def register_services(hass: HomeAssistant) -> None:
     async def handle_commit_block(call: ServiceCall) -> ServiceResponse:
         store = _get_store(hass)
         from .models import Block, ValidationError
-        room_id    = call.data[ATTR_ROOM]
+        target     = _resolve_target(store, call.data)
         day        = call.data[ATTR_DAY]
         block_id   = call.data.get(ATTR_BLOCK_ID)
         start_time = call.data[ATTR_START_TIME]
         end_time   = call.data[ATTR_END_TIME]
         temperature = call.data[ATTR_TEMPERATURE]
+        occupied_temperature = call.data.get(ATTR_OCCUPIED_TEMPERATURE)
         enabled    = call.data[ATTR_ENABLED]
 
         if block_id:
             new_block = Block(id=block_id, start_time=start_time, end_time=end_time,
-                              temperature=temperature, enabled=enabled)
+                              temperature=temperature, enabled=enabled,
+                              occupied_temperature=occupied_temperature)
         else:
-            new_block = Block.new(start_time, end_time, temperature, enabled)
+            new_block = Block.new(start_time, end_time, temperature, enabled,
+                                  occupied_temperature=occupied_temperature)
 
         try:
             new_block.validate()
         except ValidationError as e:
             raise ServiceValidationError(str(e)) from e
 
-        conflicts = store.check_overlaps(room_id, day, new_block)
+        conflicts = store.check_overlaps(target, day, new_block)
         if conflicts:
             return {
                 "status": "conflict",
@@ -251,13 +271,13 @@ def register_services(hass: HomeAssistant) -> None:
             }
 
         try:
-            store.commit_block(room_id, day, new_block, [])
+            store.commit_block(target, day, new_block, [])
         except (ValueError, ValidationError) as e:
             raise ServiceValidationError(str(e)) from e
 
         await store.async_save()
         hass.bus.async_fire(f"{DOMAIN}.block_changed", {
-            "room": room_id, "day": day,
+            **_target_event_data(target), "day": day,
             "block": new_block.to_dict(),
             "action": "updated" if block_id else "created",
         })
@@ -267,29 +287,32 @@ def register_services(hass: HomeAssistant) -> None:
         """Commit a block, resolving all conflicts (user already confirmed)."""
         store = _get_store(hass)
         from .models import Block, ValidationError
-        room_id    = call.data[ATTR_ROOM]
+        target     = _resolve_target(store, call.data)
         day        = call.data[ATTR_DAY]
         block_id   = call.data.get(ATTR_BLOCK_ID)
         start_time = call.data[ATTR_START_TIME]
         end_time   = call.data[ATTR_END_TIME]
         temperature = call.data[ATTR_TEMPERATURE]
+        occupied_temperature = call.data.get(ATTR_OCCUPIED_TEMPERATURE)
         enabled    = call.data[ATTR_ENABLED]
 
         if block_id:
             new_block = Block(id=block_id, start_time=start_time, end_time=end_time,
-                              temperature=temperature, enabled=enabled)
+                              temperature=temperature, enabled=enabled,
+                              occupied_temperature=occupied_temperature)
         else:
-            new_block = Block.new(start_time, end_time, temperature, enabled)
+            new_block = Block.new(start_time, end_time, temperature, enabled,
+                                  occupied_temperature=occupied_temperature)
 
-        conflicts = store.check_overlaps(room_id, day, new_block)
+        conflicts = store.check_overlaps(target, day, new_block)
         try:
-            store.commit_block(room_id, day, new_block, conflicts)
+            store.commit_block(target, day, new_block, conflicts)
         except (ValueError, ValidationError) as e:
             raise ServiceValidationError(str(e)) from e
 
         await store.async_save()
         hass.bus.async_fire(f"{DOMAIN}.block_changed", {
-            "room": room_id, "day": day,
+            **_target_event_data(target), "day": day,
             "block": new_block.to_dict(),
             "action": "updated" if block_id else "created",
         })
@@ -297,16 +320,16 @@ def register_services(hass: HomeAssistant) -> None:
 
     async def handle_delete_block(call: ServiceCall) -> ServiceResponse:
         store = _get_store(hass)
-        room_id  = call.data[ATTR_ROOM]
+        target   = _resolve_target(store, call.data)
         day      = call.data[ATTR_DAY]
         block_id = call.data[ATTR_BLOCK_ID]
         try:
-            store.delete_block(room_id, day, block_id)
+            store.delete_block(target, day, block_id)
         except ValueError as e:
             raise ServiceValidationError(str(e)) from e
         await store.async_save()
         hass.bus.async_fire(f"{DOMAIN}.block_changed", {
-            "room": room_id, "day": day,
+            **_target_event_data(target), "day": day,
             "block": {"id": block_id},
             "action": "deleted",
         })
@@ -314,20 +337,17 @@ def register_services(hass: HomeAssistant) -> None:
 
     async def handle_toggle_block(call: ServiceCall) -> ServiceResponse:
         store = _get_store(hass)
-        room_id  = call.data[ATTR_ROOM]
+        target   = _resolve_target(store, call.data)
         day      = call.data[ATTR_DAY]
         block_id = call.data[ATTR_BLOCK_ID]
         enabled  = call.data[ATTR_ENABLED]
-        room = store.get_room(room_id)
-        if not room:
-            raise ServiceValidationError(f"Room '{room_id}' not found")
-        block = next((b for b in room.get_day(day) if b.id == block_id), None)
+        block = next((b for b in store.get_day(target, day) if b.id == block_id), None)
         if not block:
             raise ServiceValidationError(f"Block '{block_id}' not found")
         block.enabled = enabled
         await store.async_save()
         hass.bus.async_fire(f"{DOMAIN}.block_changed", {
-            "room": room_id, "day": day,
+            **_target_event_data(target), "day": day,
             "block": block.to_dict(),
             "action": "enabled" if enabled else "disabled",
         })
