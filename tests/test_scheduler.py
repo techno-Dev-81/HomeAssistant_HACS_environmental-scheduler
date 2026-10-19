@@ -131,5 +131,37 @@ class PreHeatSetpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self._set_temperatures(hass), [21.0, current])
 
 
+class OccupancyChangeTests(unittest.IsolatedAsyncioTestCase):
+    # 2026-10-19 is a Monday; 08:00 and 08:01 are inside the 07:00 to 09:00 block
+    FIRST_TICK = datetime(2026, 10, 19, 8, 0)
+    NEXT_TICK = datetime(2026, 10, 19, 8, 1)
+    OCCUPANCY_ENTITY = "binary_sensor.house_occupied"
+
+    def _set_temperatures(self, hass) -> list[float]:
+        return [
+            call["data"]["temperature"] for call in hass.services.calls
+            if call["domain"] == "climate" and call["service"] == "set_temperature"
+        ]
+
+    async def test_occupancy_change_during_active_block_updates_next_tick(self) -> None:
+        hass, scheduler = _new_scheduler()
+        store = scheduler._store
+        store.get_config().node_red_mode = False
+        store.get_config().house_occupancy_entity = self.OCCUPANCY_ENTITY
+        hass.states.set(self.OCCUPANCY_ENTITY, "off")
+        room = Room(id="lounge", name="Lounge", climate_entities=["climate.lounge"])
+        room.weekly_schedule["monday"] = [
+            Block.new("07:00", "09:00", 18.0, occupied_temperature=21.0)
+        ]
+        store.add_room(room)
+
+        await scheduler._tick(self.FIRST_TICK)
+        self.assertEqual(self._set_temperatures(hass), [18.0])
+
+        hass.states.set(self.OCCUPANCY_ENTITY, "on")
+        await scheduler._tick(self.NEXT_TICK)
+        self.assertEqual(self._set_temperatures(hass), [18.0, 21.0])
+
+
 if __name__ == "__main__":
     unittest.main()
