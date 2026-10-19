@@ -24,6 +24,7 @@ class SchedulerStore:
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._rooms: dict[str, Room] = {}
         self._config: SystemConfig = SystemConfig()
+        self._house_schedule: dict[str, list[Block]] = {day: [] for day in DAYS_OF_WEEK}
 
     # ------------------------------------------------------------------
     # Load / Save
@@ -37,11 +38,19 @@ class SchedulerStore:
         for r in data.get("rooms", []):
             room = Room.from_dict(r)
             self._rooms[room.id] = room
+        # Old data has no house_schedule; missing days stay empty
+        house = data.get("house_schedule", {})
+        for day in DAYS_OF_WEEK:
+            self._house_schedule[day] = [Block.from_dict(b) for b in house.get(day, [])]
 
     async def async_save(self) -> None:
         data = {
             "config": self._config.to_dict(),
             "rooms": [r.to_dict() for r in self._rooms.values()],
+            "house_schedule": {
+                day: [b.to_dict() for b in blocks]
+                for day, blocks in self._house_schedule.items()
+            },
         }
         await self._store.async_save(data)
 
