@@ -21,6 +21,10 @@ ATTR_BLOCK_ID   = "block_id"
 ATTR_START_TIME = "start_time"
 ATTR_END_TIME   = "end_time"
 ATTR_TEMPERATURE = "temperature"
+ATTR_SCHEDULE   = "schedule"
+ATTR_OCCUPIED_TEMPERATURE = "occupied_temperature"
+
+SCHEDULE_TARGETS = ["room", "house"]
 
 SERVICE_GET_ROOMS            = "get_rooms"
 SERVICE_GET_ACTIVE_BLOCK     = "get_active_block"
@@ -43,7 +47,8 @@ SCHEMA_GET_ACTIVE_BLOCK = vol.Schema({
 })
 
 SCHEMA_GET_BLOCKS = vol.Schema({
-    vol.Required(ATTR_ROOM): cv.string,
+    vol.Optional(ATTR_ROOM):     cv.string,
+    vol.Optional(ATTR_SCHEDULE): vol.In(SCHEDULE_TARGETS),
     vol.Optional(ATTR_DAY): vol.In([
         "monday", "tuesday", "wednesday", "thursday",
         "friday", "saturday", "sunday",
@@ -61,30 +66,35 @@ SCHEMA_SET_VACATION_MODE = vol.Schema({
 DAYS_OF_WEEK = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
 
 SCHEMA_COMMIT_BLOCK = vol.Schema({
-    vol.Required(ATTR_ROOM):        cv.string,
+    vol.Optional(ATTR_ROOM):        cv.string,
+    vol.Optional(ATTR_SCHEDULE):    vol.In(SCHEDULE_TARGETS),
     vol.Required(ATTR_DAY):         vol.In(DAYS_OF_WEEK),
     vol.Required(ATTR_START_TIME):  cv.string,
     vol.Required(ATTR_END_TIME):    cv.string,
     vol.Required(ATTR_TEMPERATURE): vol.All(vol.Coerce(float), vol.Range(min=5, max=35)),
+    vol.Optional(ATTR_OCCUPIED_TEMPERATURE): vol.Any(None, vol.All(vol.Coerce(float), vol.Range(min=5, max=35))),
     vol.Optional(ATTR_BLOCK_ID):    cv.string,
     vol.Optional(ATTR_ENABLED, default=True): cv.boolean,
 })
 
 SCHEMA_DELETE_BLOCK = vol.Schema({
-    vol.Required(ATTR_ROOM):     cv.string,
+    vol.Optional(ATTR_ROOM):     cv.string,
+    vol.Optional(ATTR_SCHEDULE): vol.In(SCHEDULE_TARGETS),
     vol.Required(ATTR_DAY):      vol.In(DAYS_OF_WEEK),
     vol.Required(ATTR_BLOCK_ID): cv.string,
 })
 
 SCHEMA_TOGGLE_BLOCK = vol.Schema({
-    vol.Required(ATTR_ROOM):     cv.string,
+    vol.Optional(ATTR_ROOM):     cv.string,
+    vol.Optional(ATTR_SCHEDULE): vol.In(SCHEDULE_TARGETS),
     vol.Required(ATTR_DAY):      vol.In(DAYS_OF_WEEK),
     vol.Required(ATTR_BLOCK_ID): cv.string,
     vol.Required(ATTR_ENABLED):  cv.boolean,
 })
 
 SCHEMA_COPY_DAY = vol.Schema({
-    vol.Required(ATTR_ROOM):        cv.string,
+    vol.Optional(ATTR_ROOM):        cv.string,
+    vol.Optional(ATTR_SCHEDULE):    vol.In(SCHEDULE_TARGETS),
     vol.Required("source_day"):     vol.In(DAYS_OF_WEEK),
     vol.Required("target_days"):    [vol.In(DAYS_OF_WEEK)],
 })
