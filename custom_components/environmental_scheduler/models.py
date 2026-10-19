@@ -26,15 +26,23 @@ class Block:
     end_time: str
     temperature: float
     enabled: bool = True
+    occupied_temperature: float | None = None
 
     @staticmethod
-    def new(start_time: str, end_time: str, temperature: float, enabled: bool = True) -> "Block":
+    def new(
+        start_time: str,
+        end_time: str,
+        temperature: float,
+        enabled: bool = True,
+        occupied_temperature: float | None = None,
+    ) -> "Block":
         return Block(
             id=f"block_{uuid.uuid4().hex[:8]}",
             start_time=start_time,
             end_time=end_time,
             temperature=temperature,
             enabled=enabled,
+            occupied_temperature=occupied_temperature,
         )
 
     def _as_time(self, t: str) -> time:
@@ -73,6 +81,13 @@ class Block:
             )
         if round(self.temperature * 2) != self.temperature * 2:
             raise ValidationError("Temperature must be in 0.5°C increments")
+        if self.occupied_temperature is not None:
+            if not (TEMP_MIN <= self.occupied_temperature <= TEMP_MAX):
+                raise ValidationError(
+                    f"Occupied temperature {self.occupied_temperature} outside allowed range {TEMP_MIN}–{TEMP_MAX}"
+                )
+            if round(self.occupied_temperature * 2) != self.occupied_temperature * 2:
+                raise ValidationError("Occupied temperature must be in 0.5°C increments")
 
     def to_dict(self) -> dict:
         return {
@@ -81,6 +96,7 @@ class Block:
             "end_time": self.end_time,
             "temperature": self.temperature,
             "enabled": self.enabled,
+            "occupied_temperature": self.occupied_temperature,
         }
 
     @staticmethod
@@ -91,6 +107,11 @@ class Block:
             end_time=data["end_time"],
             temperature=float(data["temperature"]),
             enabled=bool(data.get("enabled", True)),
+            occupied_temperature=(
+                float(data["occupied_temperature"])
+                if data.get("occupied_temperature") is not None
+                else None
+            ),
         )
 
 
