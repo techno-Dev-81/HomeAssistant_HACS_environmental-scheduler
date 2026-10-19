@@ -134,6 +134,7 @@ class Room:
     door_window_actions: dict = field(default_factory=dict)
     away_temp: float | None = None
     fallback_temp: float | None = None
+    follow_house_schedule: bool = False
 
     def get_day(self, day: str) -> list[Block]:
         return self.weekly_schedule.get(day, [])
@@ -173,6 +174,7 @@ class Room:
             "door_window_actions": self.door_window_actions,
             "away_temp": self.away_temp,
             "fallback_temp": self.fallback_temp,
+            "follow_house_schedule": self.follow_house_schedule,
         }
 
     @staticmethod
@@ -202,6 +204,7 @@ class Room:
             door_window_actions=data.get("door_window_actions", {}),
             away_temp=data.get("away_temp"),
             fallback_temp=data.get("fallback_temp"),
+            follow_house_schedule=bool(data.get("follow_house_schedule", False)),
         )
 
 
@@ -241,6 +244,7 @@ class SystemConfig:
     door_window_delay_seconds: int = 300
     persons: list[Person] = field(default_factory=list)
     logging_level: str = "info"
+    house_occupancy_entity: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -256,6 +260,7 @@ class SystemConfig:
             "door_window_delay_seconds": self.door_window_delay_seconds,
             "persons": [p.to_dict() for p in self.persons],
             "logging_level": self.logging_level,
+            "house_occupancy_entity": self.house_occupancy_entity,
         }
 
     @staticmethod
@@ -273,4 +278,5 @@ class SystemConfig:
             door_window_delay_seconds=int(data.get("door_window_delay_seconds", 300)),
             persons=[Person.from_dict(p) for p in data.get("persons", [])],
             logging_level=data.get("logging_level", "info"),
+            house_occupancy_entity=data.get("house_occupancy_entity"),
         )
