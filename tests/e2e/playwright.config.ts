@@ -20,6 +20,7 @@ export default defineConfig({
   },
   reporter: [
     ['list'],
+    ['./reporters/summary-reporter.ts'],
     ['html', { outputFolder: process.env.PW_HTML ?? `${MANUAL_DIR}/html-report`, open: 'never' }],
     ['json', { outputFile: process.env.PW_JSON ?? `${MANUAL_DIR}/results.json` }],
   ],
