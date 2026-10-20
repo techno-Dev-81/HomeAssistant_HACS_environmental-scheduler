@@ -172,24 +172,45 @@ def register_services(hass: HomeAssistant) -> None:
 
     async def handle_get_blocks(call: ServiceCall) -> ServiceResponse:
         store = _get_store(hass)
-        room_id = call.data[ATTR_ROOM]
+        target = _resolve_target(store, call.data)
         day = call.data.get(ATTR_DAY)
 
-        if store.get_room(room_id) is None:
-            raise ServiceValidationError(f"Room '{room_id}' not found")
-
         try:
-            if day:
-                blocks = store.get_blocks(room_id, day)
-                return {"room": room_id, "day": day, "blocks": [b.to_dict() for b in blocks]}
+            if target is None:
+                if day:
+                    blocks = store.get_day(None, day)
+                    return {"room": None, "house": True, "day": day, "blocks": [b.to_dict() for b in blocks]}
+                return {
+                    "room": None,
+                    "house": True,
+                    "schedule": {
+                        d: [b.to_dict() for b in store.get_day(None, d)]
+                        for d in DAYS_OF_WEEK
+                    },
+                }
 
-            room = store.get_room(room_id)
+            room = store.get_room(target)
+            if call.data.get(ATTR_SCHEDULE) == "room":
+                days = room.weekly_schedule
+            else:
+                days = store.effective_days(room)
+
+            if day:
+                blocks = days.get(day, [])
+                return {
+                    "room": target,
+                    "day": day,
+                    "blocks": [b.to_dict() for b in blocks],
+                    "following_house": room.follow_house_schedule,
+                }
+
             return {
-                "room": room_id,
+                "room": target,
                 "schedule": {
-                    d: [b.to_dict() for b in room.get_day(d)]
-                    for d in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+                    d: [b.to_dict() for b in days.get(d, [])]
+                    for d in DAYS_OF_WEEK
                 },
+                "following_house": room.follow_house_schedule,
             }
         except ValueError as e:
             raise ServiceValidationError(str(e)) from e
@@ -574,6 +595,7 @@ def register_services(hass: HomeAssistant) -> None:
             "entity_type": room.entity_type,
             "preheat_offset_minutes": room.preheat_offset_minutes,
             "upcoming": upcoming,
+            "following_house": room.follow_house_schedule,
         }
 
     hass.services.async_register(
