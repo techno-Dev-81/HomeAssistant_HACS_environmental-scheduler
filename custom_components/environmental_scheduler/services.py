@@ -111,12 +111,13 @@ SCHEMA_UPDATE_ROOM = vol.Schema({
     vol.Required(ATTR_ROOM):                       cv.string,
     vol.Optional("name"):                          cv.string,
     vol.Optional("area_id"):                       vol.Any(cv.string, None),
-    vol.Optional("climate_entities", default=[]):  [cv.string],
+    vol.Optional("climate_entities"):              [cv.string],
     vol.Optional("hot_water_entity"):              vol.Any(cv.string, None),
-    vol.Optional("temperature_sensors", default=[]): [cv.string],
-    vol.Optional("door_entities", default=[]):     [cv.string],
-    vol.Optional("window_entities", default=[]):   [cv.string],
-    vol.Optional("persons", default=[]):           [cv.string],
+    vol.Optional("temperature_sensors"):           [cv.string],
+    vol.Optional("door_entities"):                 [cv.string],
+    vol.Optional("window_entities"):               [cv.string],
+    vol.Optional("persons"):                       [cv.string],
+    vol.Optional("follow_house_schedule"):         cv.boolean,
 })
 
 SCHEMA_GET_UPCOMING_BLOCKS = vol.Schema({
@@ -560,13 +561,20 @@ def register_services(hass: HomeAssistant) -> None:
             room.name = call.data["name"].strip() or room.name
         if "area_id" in call.data:
             room.area_id = call.data["area_id"] or None
-        room.climate_entities    = call.data.get("climate_entities", room.climate_entities)
+        if "climate_entities" in call.data:
+            room.climate_entities = call.data["climate_entities"]
         if "hot_water_entity" in call.data:
             room.hot_water_entity = call.data["hot_water_entity"] or None
-        room.temperature_sensors = call.data.get("temperature_sensors", room.temperature_sensors)
-        room.door_entities       = call.data.get("door_entities", room.door_entities)
-        room.window_entities     = call.data.get("window_entities", room.window_entities)
-        room.persons             = call.data.get("persons", room.persons)
+        if "temperature_sensors" in call.data:
+            room.temperature_sensors = call.data["temperature_sensors"]
+        if "door_entities" in call.data:
+            room.door_entities = call.data["door_entities"]
+        if "window_entities" in call.data:
+            room.window_entities = call.data["window_entities"]
+        if "persons" in call.data:
+            room.persons = call.data["persons"]
+        if "follow_house_schedule" in call.data:
+            room.follow_house_schedule = call.data["follow_house_schedule"]
         store.update_room(room)
         await store.async_save()
         hass.bus.async_fire(f"{DOMAIN}.room_changed", {"room": room.id, "action": "updated"})
