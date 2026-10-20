@@ -447,8 +447,15 @@ class EnvironmentalSchedulerRoomConfigCard extends HTMLElement {
         <div class="field-label">Home Assistant Area (optional)</div>
         <ha-area-picker id="area-picker"></ha-area-picker>
       </div>
+      <div class="field-group">
+        <label class="person-row">
+          <input type="checkbox" id="follow-house" ${this._get('follow_house_schedule') ? 'checked' : ''} />
+          <span>Follow house schedule</span>
+        </label>
+      </div>
     `;
     el.querySelector('#room-name').addEventListener('input', e => this._set('name', e.target.value));
+    el.querySelector('#follow-house').addEventListener('change', e => this._set('follow_house_schedule', e.target.checked));
 
     const picker = el.querySelector('#area-picker');
     picker.hass = this._hass;
