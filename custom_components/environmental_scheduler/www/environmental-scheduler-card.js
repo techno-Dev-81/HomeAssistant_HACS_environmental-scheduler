@@ -296,7 +296,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
     const nowMin   = nowMinutes();
     const meta     = { normal:{label:'Normal',color:'#4caf50'}, away:{label:'Away',color:'#ff9800'}, vacation:{label:'Vacation',color:'#2196f3'} }[this._houseMode] || {label:this._houseMode,color:'#9e9e9e'};
     const title    = this._config.title ?? 'Environmental Scheduler';
-    const activeId = this._activeResult?.active_block?.id;
+    const activeId = this._selectedRoom === HOUSE_KEY ? undefined : this._activeResult?.active_block?.id;
     const targetT  = this._activeResult?.target_temperature;
     const reason   = this._activeResult?.reason;
 
