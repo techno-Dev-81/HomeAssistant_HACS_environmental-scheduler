@@ -89,6 +89,8 @@ class FakeHass(HomeAssistant):
         self.states = FakeStates()
         self.bus = FakeBus()
         self.services = FakeServices()
+        # Stored data per storage key, shared by every Store on this hass.
+        self.storage_data: dict[str, dict | None] = {}
 
 
 # ----------------------------------------------------------------------
@@ -99,16 +101,25 @@ class Store:
     """In-memory stand-in for homeassistant.helpers.storage.Store.
 
     `data` holds what was last saved (or seeded by a test); None means
-    nothing stored. Copies are returned and kept so callers cannot mutate
-    the stored value by reference.
+    nothing stored. It lives on hass.storage_data under `key`, so every
+    Store built for the same hass shares it. Copies are returned and kept
+    so callers cannot mutate the stored value by reference.
     """
 
     def __init__(self, hass, version: int, key: str, *args, **kwargs) -> None:
         self.hass = hass
         self.version = version
         self.key = key
-        self.data: dict | None = None
         self.save_count = 0
+        self.remove_count = 0
+
+    @property
+    def data(self) -> dict | None:
+        return self.hass.storage_data.get(self.key)
+
+    @data.setter
+    def data(self, value: dict | None) -> None:
+        self.hass.storage_data[self.key] = value
 
     async def async_load(self):
         return copy.deepcopy(self.data)
@@ -116,6 +127,10 @@ class Store:
     async def async_save(self, data) -> None:
         self.data = copy.deepcopy(data)
         self.save_count += 1
+
+    async def async_remove(self) -> None:
+        self.hass.storage_data.pop(self.key, None)
+        self.remove_count += 1
 
 
 # ----------------------------------------------------------------------
