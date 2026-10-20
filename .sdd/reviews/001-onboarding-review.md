@@ -29,6 +29,7 @@ Project findings stay in the project. Generic ones are applied here first and th
 | G1 | Add rows `custom_components/**` KEEP, `hacs.json` KEEP, `.gitignore` KEEP before the fallthrough | sdd-onboard patterns.md | F1: avoids 22 false CONFLICT items on any HA/HACS integration |
 | G2 | Add optional rows or config fields for repository URL, issue tracker, release tag format and data storage path | sdd-constitution template, config.json template | F5 |
 | G3 | In step 1, when the checked-out branch is the default branch, also list remote branches without `.sdd/` and their divergence from it | sdd-onboard step 1 | F2: the working branch had to be found from CLAUDE.md prose |
+| G4 | Question testing at the start of every spec: sdd-spec asks a testing question, and the spec template gains a required "Testing" section listing the new or updated tests the spec requires (unit and E2E, with what each covers); never leave testing to the plan or after implementation | sdd-spec steps 3 and 6, spec template | Raised after onboarding, spec 001 implement phase, 2026-10-20, by the user: spec 001 had no testing section, the plan chose a manual checklist and 23 checks were left to run by hand (tasks T3.8, T4.6, T5.3) |
 
 Nothing is written outside this project until the user approves.
 
