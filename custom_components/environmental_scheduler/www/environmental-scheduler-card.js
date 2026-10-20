@@ -99,9 +99,14 @@ class EnvironmentalSchedulerCard extends HTMLElement {
     if (!this._selectedRoom) return;
     try {
       if (this._selectedRoom === HOUSE_KEY) {
-        // get_active_block takes a room only; house status line is not built yet.
-        const s = await this._call('get_blocks', this._target());
-        this._schedule = s.schedule || {};
+        // get_active_block takes a room only, so the house active block is computed here.
+        const [s, h] = await Promise.all([
+          this._call('get_blocks',       this._target()),
+          this._call('get_house_status', {}),
+        ]);
+        this._schedule     = s.schedule || {};
+        this._activeResult = { active_block: this._houseActiveBlock() };
+        this._houseMode    = h.house_mode;
       } else {
         const [s, a] = await Promise.all([
           this._call('get_blocks',       this._target()),
@@ -113,6 +118,14 @@ class EnvironmentalSchedulerCard extends HTMLElement {
       }
     } catch(e) { console.error('[EnvScheduler] refresh', e); }
     this._render();
+  }
+
+  // First enabled house block for today with start <= now < end, or null.
+  _houseActiveBlock() {
+    const now = nowMinutes();
+    return (this._schedule?.[todayName()] ?? []).find(b =>
+      b.enabled && timeToMinutes(b.start_time) <= now && now < timeToMinutes(b.end_time)
+    ) || null;
   }
 
   // ------------------------------------------------------------------ track click → add dialog
@@ -322,9 +335,14 @@ class EnvironmentalSchedulerCard extends HTMLElement {
       return `<div class="tick" style="left:${pct}%;transform:${xform}">${h===24?'24:00':String(h).padStart(2,'0')+':00'}</div>`;
     }).join('');
 
-    const statusHtml = this._activeResult
-      ? `<span class="s-temp">${targetT}°C</span><span class="s-reason">${reason}</span>`
-      : `<span class="s-reason">Loading…</span>`;
+    const houseBlock = this._activeResult?.active_block;
+    const statusHtml = !this._activeResult
+      ? `<span class="s-reason">Loading…</span>`
+      : this._selectedRoom === HOUSE_KEY
+        ? (houseBlock
+          ? `<span class="s-temp">${houseBlock.temperature}°C</span><span class="s-reason">${houseBlock.start_time}–${houseBlock.end_time}</span>`
+          : `<span class="s-reason">No active block</span>`)
+        : `<span class="s-temp">${targetT}°C</span><span class="s-reason">${reason}</span>`;
 
     const dialogHtml = this._dialog
       ? (this._dialog.mode === 'copy' ? this._renderCopyDialog() : this._renderDialog())
