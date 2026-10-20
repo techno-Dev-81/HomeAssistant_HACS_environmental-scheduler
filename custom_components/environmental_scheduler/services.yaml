@@ -18,15 +18,32 @@ get_active_block:
 
 get_blocks:
   name: Get Blocks
-  description: Returns all scheduled blocks for a room, optionally filtered by day.
+  description: >
+    Returns all scheduled blocks for a room or for the house schedule, optionally
+    filtered by day. For a room that follows the house schedule, the house blocks
+    are returned with following_house true unless schedule is 'room'.
   fields:
     room:
       name: Room
-      description: Room ID (e.g. living_room)
-      required: true
+      description: Room ID (e.g. living_room). Required unless schedule is 'house'.
+      required: false
       example: living_room
       selector:
         text:
+    schedule:
+      name: Schedule
+      description: >
+        Which schedule to read. 'house' reads the house schedule (room is ignored).
+        'room' reads the room's own stored blocks, even when the room follows the
+        house schedule. If omitted, a room following the house schedule returns
+        the house blocks.
+      required: false
+      example: room
+      selector:
+        select:
+          options:
+            - room
+            - house
     day:
       name: Day
       description: Filter by day of week (returns full week if omitted)
@@ -125,3 +142,443 @@ set_preheat_offset:
           max: 120
           unit_of_measurement: min
           mode: slider
+
+commit_block:
+  name: Commit Block
+  description: >
+    Creates or updates a block on a room or the house schedule. If the block
+    overlaps existing blocks, nothing is saved and the conflicts are returned.
+  fields:
+    room:
+      name: Room
+      description: Room ID (e.g. living_room). Required unless schedule is 'house'.
+      required: false
+      example: living_room
+      selector:
+        text:
+    schedule:
+      name: Schedule
+      description: >
+        Which schedule to edit. 'house' edits the house schedule (room is ignored).
+        'room' edits the room's own stored blocks. On a room that follows the house
+        schedule, edits without schedule change the room's own blocks, not the house
+        blocks; reading them back with get_blocks needs schedule: room.
+      required: false
+      example: house
+      selector:
+        select:
+          options:
+            - room
+            - house
+    day:
+      name: Day
+      description: Day of week the block belongs to
+      required: true
+      example: monday
+      selector:
+        select:
+          options:
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
+            - friday
+            - saturday
+            - sunday
+    start_time:
+      name: Start Time
+      description: Block start time (HH:MM)
+      required: true
+      example: "07:00"
+      selector:
+        text:
+    end_time:
+      name: End Time
+      description: Block end time (HH:MM), after start time, minimum 30 minutes
+      required: true
+      example: "09:00"
+      selector:
+        text:
+    temperature:
+      name: Temperature
+      description: Target temperature for the block (5 to 35, 0.5 steps)
+      required: true
+      example: 20.5
+      selector:
+        number:
+          min: 5
+          max: 35
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: box
+    occupied_temperature:
+      name: Occupied Temperature
+      description: >
+        Optional temperature used instead of temperature while the house occupancy
+        entity is on (5 to 35, 0.5 steps). Omit or set to null for none.
+      required: false
+      example: 21.5
+      selector:
+        number:
+          min: 5
+          max: 35
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: box
+    block_id:
+      name: Block ID
+      description: ID of an existing block to update. Omit to create a new block.
+      required: false
+      example: a1b2c3d4
+      selector:
+        text:
+    enabled:
+      name: Enabled
+      description: Whether the block is active (default true)
+      required: false
+      example: true
+      selector:
+        boolean:
+
+commit_block_force:
+  name: Commit Block (Force)
+  description: >
+    Creates or updates a block on a room or the house schedule, trimming or
+    deleting overlapping blocks so the new block wins.
+  fields:
+    room:
+      name: Room
+      description: Room ID (e.g. living_room). Required unless schedule is 'house'.
+      required: false
+      example: living_room
+      selector:
+        text:
+    schedule:
+      name: Schedule
+      description: >
+        Which schedule to edit. 'house' edits the house schedule (room is ignored).
+        'room' edits the room's own stored blocks. On a room that follows the house
+        schedule, edits without schedule change the room's own blocks, not the house
+        blocks; reading them back with get_blocks needs schedule: room.
+      required: false
+      example: house
+      selector:
+        select:
+          options:
+            - room
+            - house
+    day:
+      name: Day
+      description: Day of week the block belongs to
+      required: true
+      example: monday
+      selector:
+        select:
+          options:
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
+            - friday
+            - saturday
+            - sunday
+    start_time:
+      name: Start Time
+      description: Block start time (HH:MM)
+      required: true
+      example: "07:00"
+      selector:
+        text:
+    end_time:
+      name: End Time
+      description: Block end time (HH:MM), after start time, minimum 30 minutes
+      required: true
+      example: "09:00"
+      selector:
+        text:
+    temperature:
+      name: Temperature
+      description: Target temperature for the block (5 to 35, 0.5 steps)
+      required: true
+      example: 20.5
+      selector:
+        number:
+          min: 5
+          max: 35
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: box
+    occupied_temperature:
+      name: Occupied Temperature
+      description: >
+        Optional temperature used instead of temperature while the house occupancy
+        entity is on (5 to 35, 0.5 steps). Omit or set to null for none.
+      required: false
+      example: 21.5
+      selector:
+        number:
+          min: 5
+          max: 35
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: box
+    block_id:
+      name: Block ID
+      description: ID of an existing block to update. Omit to create a new block.
+      required: false
+      example: a1b2c3d4
+      selector:
+        text:
+    enabled:
+      name: Enabled
+      description: Whether the block is active (default true)
+      required: false
+      example: true
+      selector:
+        boolean:
+
+delete_block:
+  name: Delete Block
+  description: Deletes a block from a room or the house schedule.
+  fields:
+    room:
+      name: Room
+      description: Room ID (e.g. living_room). Required unless schedule is 'house'.
+      required: false
+      example: living_room
+      selector:
+        text:
+    schedule:
+      name: Schedule
+      description: >
+        Which schedule to edit. 'house' edits the house schedule (room is ignored).
+        'room' edits the room's own stored blocks. On a room that follows the house
+        schedule, edits without schedule change the room's own blocks, not the house
+        blocks; reading them back with get_blocks needs schedule: room.
+      required: false
+      example: house
+      selector:
+        select:
+          options:
+            - room
+            - house
+    day:
+      name: Day
+      description: Day of week the block belongs to
+      required: true
+      example: monday
+      selector:
+        select:
+          options:
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
+            - friday
+            - saturday
+            - sunday
+    block_id:
+      name: Block ID
+      description: ID of the block
+      required: true
+      example: a1b2c3d4
+      selector:
+        text:
+
+toggle_block:
+  name: Toggle Block
+  description: Enables or disables a block on a room or the house schedule.
+  fields:
+    room:
+      name: Room
+      description: Room ID (e.g. living_room). Required unless schedule is 'house'.
+      required: false
+      example: living_room
+      selector:
+        text:
+    schedule:
+      name: Schedule
+      description: >
+        Which schedule to edit. 'house' edits the house schedule (room is ignored).
+        'room' edits the room's own stored blocks. On a room that follows the house
+        schedule, edits without schedule change the room's own blocks, not the house
+        blocks; reading them back with get_blocks needs schedule: room.
+      required: false
+      example: house
+      selector:
+        select:
+          options:
+            - room
+            - house
+    day:
+      name: Day
+      description: Day of week the block belongs to
+      required: true
+      example: monday
+      selector:
+        select:
+          options:
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
+            - friday
+            - saturday
+            - sunday
+    block_id:
+      name: Block ID
+      description: ID of the block
+      required: true
+      example: a1b2c3d4
+      selector:
+        text:
+    enabled:
+      name: Enabled
+      description: true to enable the block, false to disable it
+      required: true
+      example: false
+      selector:
+        boolean:
+
+copy_day:
+  name: Copy Day
+  description: >
+    Copies all blocks from one day to other days on a room or the house schedule.
+    Blocks on the target days are replaced.
+  fields:
+    room:
+      name: Room
+      description: Room ID (e.g. living_room). Required unless schedule is 'house'.
+      required: false
+      example: living_room
+      selector:
+        text:
+    schedule:
+      name: Schedule
+      description: >
+        Which schedule to edit. 'house' edits the house schedule (room is ignored).
+        'room' edits the room's own stored blocks. On a room that follows the house
+        schedule, edits without schedule change the room's own blocks, not the house
+        blocks; reading them back with get_blocks needs schedule: room.
+      required: false
+      example: house
+      selector:
+        select:
+          options:
+            - room
+            - house
+    source_day:
+      name: Source Day
+      description: Day to copy blocks from
+      required: true
+      example: monday
+      selector:
+        select:
+          options:
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
+            - friday
+            - saturday
+            - sunday
+    target_days:
+      name: Target Days
+      description: Days to copy the blocks to (the source day is skipped)
+      required: true
+      example: '["tuesday", "wednesday"]'
+      selector:
+        select:
+          multiple: true
+          options:
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
+            - friday
+            - saturday
+            - sunday
+
+update_room:
+  name: Update Room
+  description: >
+    Updates a room's settings. Only the fields provided are changed; omitted
+    fields keep their current values.
+  fields:
+    room:
+      name: Room
+      description: Room ID (e.g. living_room)
+      required: true
+      example: living_room
+      selector:
+        text:
+    name:
+      name: Name
+      description: Display name of the room
+      required: false
+      example: Living Room
+      selector:
+        text:
+    area_id:
+      name: Area
+      description: Home Assistant area ID, or null to clear
+      required: false
+      example: living_room
+      selector:
+        area:
+    climate_entities:
+      name: Climate Entities
+      description: Climate entities controlled for this room
+      required: false
+      example: '["climate.living_room"]'
+      selector:
+        entity:
+          multiple: true
+    hot_water_entity:
+      name: Hot Water Entity
+      description: Hot water entity; when set the room is a hot water room. Null to clear.
+      required: false
+      example: water_heater.boiler
+      selector:
+        entity:
+    temperature_sensors:
+      name: Temperature Sensors
+      description: Temperature sensor entities for this room
+      required: false
+      example: '["sensor.living_room_temperature"]'
+      selector:
+        entity:
+          multiple: true
+    door_entities:
+      name: Door Entities
+      description: Door sensor entities for this room
+      required: false
+      example: '["binary_sensor.living_room_door"]'
+      selector:
+        entity:
+          multiple: true
+    window_entities:
+      name: Window Entities
+      description: Window sensor entities for this room
+      required: false
+      example: '["binary_sensor.living_room_window"]'
+      selector:
+        entity:
+          multiple: true
+    persons:
+      name: Persons
+      description: IDs of the configured persons assigned to this room
+      required: false
+      example: '["david"]'
+      selector:
+        object:
+    follow_house_schedule:
+      name: Follow House Schedule
+      description: >
+        true to make the room use the house schedule instead of its own blocks.
+        The room's own blocks are kept and can still be read and edited with
+        schedule: room on the block services.
+      required: false
+      example: true
+      selector:
+        boolean:
