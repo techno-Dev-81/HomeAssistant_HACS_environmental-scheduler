@@ -10,6 +10,8 @@
 const ALL_DAYS   = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 const DAY_LABELS = { monday:'Mon', tuesday:'Tue', wednesday:'Wed', thursday:'Thu', friday:'Fri', saturday:'Sat', sunday:'Sun' };
 const TIME_TICKS = [0, 4, 8, 12, 16, 20, 24];
+// Picker value for the house schedule; '@' never occurs in a room id slug, so it cannot clash.
+const HOUSE_KEY  = '@house';
 
 function tempToColor(temp) {
   const c = Math.max(5, Math.min(35, temp));
@@ -71,6 +73,11 @@ class EnvironmentalSchedulerCard extends HTMLElement {
     return r.response;
   }
 
+  // Target fields for block service calls: the house schedule or the selected room.
+  _target() {
+    return this._selectedRoom === HOUSE_KEY ? { schedule: 'house' } : { room: this._selectedRoom };
+  }
+
   async _loadRooms() {
     try {
       const r = await this._call('get_rooms', {});
@@ -81,6 +88,8 @@ class EnvironmentalSchedulerCard extends HTMLElement {
         sessionStorage.removeItem('envscheduler_selected_room');
       } else if (this._rooms.length && !this._selectedRoom) {
         this._selectedRoom = this._rooms[0].id;
+      } else if (!this._selectedRoom) {
+        this._selectedRoom = HOUSE_KEY;
       }
     } catch(e) { console.error('[EnvScheduler] load rooms', e); }
     this._render();
@@ -89,13 +98,19 @@ class EnvironmentalSchedulerCard extends HTMLElement {
   async _doRefresh() {
     if (!this._selectedRoom) return;
     try {
-      const [s, a] = await Promise.all([
-        this._call('get_blocks',       { room: this._selectedRoom }),
-        this._call('get_active_block', { room: this._selectedRoom }),
-      ]);
-      this._schedule     = s.schedule || {};
-      this._activeResult = a;
-      this._houseMode    = a.reason==='vacation' ? 'vacation' : a.reason==='away' ? 'away' : 'normal';
+      if (this._selectedRoom === HOUSE_KEY) {
+        // get_active_block takes a room only; house status line is not built yet.
+        const s = await this._call('get_blocks', this._target());
+        this._schedule = s.schedule || {};
+      } else {
+        const [s, a] = await Promise.all([
+          this._call('get_blocks',       this._target()),
+          this._call('get_active_block', { room: this._selectedRoom }),
+        ]);
+        this._schedule     = s.schedule || {};
+        this._activeResult = a;
+        this._houseMode    = a.reason==='vacation' ? 'vacation' : a.reason==='away' ? 'away' : 'normal';
+      }
     } catch(e) { console.error('[EnvScheduler] refresh', e); }
     this._render();
   }
@@ -142,7 +157,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
   async _saveDialog() {
     const d = this._dialog;
     const data = {
-      room:        this._selectedRoom,
+      ...this._target(),
       day:         d.day,
       start_time:  minutesToTime(d.start),
       end_time:    minutesToTime(d.end),
@@ -180,7 +195,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
     if (!d.blockId) return;
     if (!confirm('Delete this block?')) return;
     try {
-      await this._call('delete_block', { room: this._selectedRoom, day: d.day, block_id: d.blockId });
+      await this._call('delete_block', { ...this._target(), day: d.day, block_id: d.blockId });
     } catch(e) { this._showError('Delete failed: ' + (e.message||e)); return; }
     this._closeDialog();
     await this._doRefresh();
@@ -189,7 +204,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
   async _toggleBlock(enabled) {
     const d = this._dialog;
     try {
-      await this._call('toggle_block', { room: this._selectedRoom, day: d.day, block_id: d.blockId, enabled });
+      await this._call('toggle_block', { ...this._target(), day: d.day, block_id: d.blockId, enabled });
     } catch(e) { this._showError('Toggle failed: ' + (e.message||e)); return; }
     d.enabled = enabled;
     this._dialog = { ...d };
@@ -244,7 +259,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
     });
     if (d.targets.length === 0) { this._closeDialog(); return; }
     try {
-      await this._call('copy_day', { room: this._selectedRoom, source_day: d.day, target_days: d.targets });
+      await this._call('copy_day', { ...this._target(), source_day: d.day, target_days: d.targets });
     } catch(e) { this._showError('Copy failed: ' + (e.message||e)); return; }
     this._closeDialog();
     await this._doRefresh();
@@ -265,9 +280,10 @@ class EnvironmentalSchedulerCard extends HTMLElement {
     const targetT  = this._activeResult?.target_temperature;
     const reason   = this._activeResult?.reason;
 
-    const roomOpts = this._rooms.map(r =>
-      `<option value="${r.id}"${r.id===this._selectedRoom?' selected':''}>${r.name}</option>`
-    ).join('');
+    const roomOpts = `<option value="${HOUSE_KEY}"${this._selectedRoom===HOUSE_KEY?' selected':''}>House</option>`
+      + this._rooms.map(r =>
+        `<option value="${r.id}"${r.id===this._selectedRoom?' selected':''}>${r.name}</option>`
+      ).join('');
 
     const days = this._view==='day' ? [today] : weekStartingToday();
 
