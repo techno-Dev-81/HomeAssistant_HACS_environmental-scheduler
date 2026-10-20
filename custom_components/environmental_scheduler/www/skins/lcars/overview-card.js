@@ -43,6 +43,7 @@ const MODES = [
 
 const REASON_COLORS = {
   schedule: '#66ff99',
+  schedule_occupied: '#66ff99',
   fallback: '#cccccc',
   away: '#ffaa33',
   persons_away: '#ffaa33',

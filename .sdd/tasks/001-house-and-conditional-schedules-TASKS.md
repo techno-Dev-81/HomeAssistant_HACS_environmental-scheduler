@@ -58,8 +58,8 @@ Paths are relative to `custom_components/environmental_scheduler/` unless they s
 | ID | Task | Done when | Depends | Status | Evidence |
 |---|---|---|---|---|---|
 | T5.1 | Overview engine `REASON_LABELS` adds `schedule_occupied: 'Schedule (occupied)'`; default overview card `REASON_LABELS` adds `'schedule (occupied)'` and `reasonColor` maps it to `#4caf50` | JSSYN on `www/engine/overview-engine.js` and `www/environmental-scheduler-overview-card.js`; Evidence records the file and line of each `block_changed` subscription and shows its handler ignores the payload (full reload with `room: null`) | T3.2 | done | JSSYN both exit 0; UT 62 run OK; block_changed: overview-engine.js:26 (CHANGE_EVENTS), subscribed :102, handler :100 takes no args; overview-card.js:93, handler :91 takes no args; both full reload; reviewer CONFORMS, 0 BLOCKING |
-| T5.2 | LCARS skin `REASON_COLORS` adds `schedule_occupied: '#66ff99'` and shows the engine label | JSSYN `www/skins/lcars/overview-card.js` | T5.1 | todo | |
-| T5.3 | MANUAL checklist WP5: (a) default overview shows "schedule (occupied)" in green for an occupied block; (b) LCARS shows "Schedule (occupied)" in `#66ff99`; (c) a house block edit refreshes both overviews | user reports all items passed | T1.7, T5.1, T5.2 | todo | |
+| T5.2 | LCARS skin `REASON_COLORS` adds `schedule_occupied: '#66ff99'` and shows the engine label | JSSYN `www/skins/lcars/overview-card.js` | T5.1 | done | JSSYN exit 0; UT 62 run OK; skin label via engine reasonLabel (overview-card.js:217, engine :169); reviewer CONFORMS, 0 BLOCKING |
+| T5.3 | MANUAL checklist WP5: (a) default overview shows "schedule (occupied)" in green for an occupied block; (b) LCARS shows "Schedule (occupied)" in `#66ff99`; (c) a house block edit refreshes both overviews | user reports all items passed | T1.7, T5.1, T5.2 | blocked | pending: needs user to deploy beta to HA test container and run checklist |
 
 Status values: todo, doing, done, blocked.
 
