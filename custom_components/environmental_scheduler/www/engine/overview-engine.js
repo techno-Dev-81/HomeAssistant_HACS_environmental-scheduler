@@ -11,6 +11,7 @@
 
 export const REASON_LABELS = {
   schedule:     'Schedule',
+  schedule_occupied: 'Schedule (occupied)',
   fallback:     'Fallback',
   away:         'Away',
   persons_away: 'Unoccupied',

@@ -26,6 +26,7 @@ const MODES = [
 
 const REASON_LABELS = {
   schedule:     'schedule',
+  schedule_occupied: 'schedule (occupied)',
   fallback:     'fallback',
   away:         'away',
   persons_away: 'unoccupied',
@@ -34,7 +35,7 @@ const REASON_LABELS = {
 };
 
 function reasonColor(reason) {
-  return { schedule:'#4caf50', fallback:'#9e9e9e', away:'#ff9800', persons_away:'#ff9800', vacation:'#2196f3', error:'#f44336' }[reason] || '#9e9e9e';
+  return { schedule:'#4caf50', schedule_occupied:'#4caf50', fallback:'#9e9e9e', away:'#ff9800', persons_away:'#ff9800', vacation:'#2196f3', error:'#f44336' }[reason] || '#9e9e9e';
 }
 
 function stateIcon(state) {
