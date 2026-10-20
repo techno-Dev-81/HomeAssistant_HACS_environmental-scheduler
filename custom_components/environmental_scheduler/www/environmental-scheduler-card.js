@@ -12,6 +12,8 @@ const DAY_LABELS = { monday:'Mon', tuesday:'Tue', wednesday:'Wed', thursday:'Thu
 const TIME_TICKS = [0, 4, 8, 12, 16, 20, 24];
 // Picker value for the house schedule; '@' never occurs in a room id slug, so it cannot clash.
 const HOUSE_KEY  = '@house';
+// Status pill labels for reasons that differ from the raw reason value.
+const REASON_LABELS = { schedule_occupied: 'schedule (occupied)' };
 
 function tempToColor(temp) {
   const c = Math.max(5, Math.min(35, temp));
@@ -34,6 +36,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
     this._rooms        = [];
     this._selectedRoom = null;
     this._schedule     = null;
+    this._following    = false; // selected room follows the house schedule: week is read-only
     this._activeResult = null;
     this._houseMode    = 'normal';
     this._view         = 'week';
@@ -105,6 +108,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
           this._call('get_house_status', {}),
         ]);
         this._schedule     = s.schedule || {};
+        this._following    = false;
         this._activeResult = { active_block: this._houseActiveBlock() };
         this._houseMode    = h.house_mode;
       } else {
@@ -113,6 +117,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
           this._call('get_active_block', { room: this._selectedRoom }),
         ]);
         this._schedule     = s.schedule || {};
+        this._following    = s.following_house === true;
         this._activeResult = a;
         this._houseMode    = a.reason==='vacation' ? 'vacation' : a.reason==='away' ? 'away' : 'normal';
       }
@@ -327,7 +332,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
         <div class="day-row${isToday?' today':''}">
           <div class="day-label">${DAY_LABELS[day]}</div>
           <div class="day-track${tall}" data-day="${day}">${bars}${nowLine}</div>
-          <button class="copy-btn" data-day="${day}" title="Copy ${DAY_LABELS[day]} to other days">⧉</button>
+          ${this._following ? '' : `<button class="copy-btn" data-day="${day}" title="Copy ${DAY_LABELS[day]} to other days">⧉</button>`}
         </div>`;
     }).join('');
 
@@ -344,7 +349,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
         ? (houseBlock
           ? `<span class="s-temp">${houseBlock.temperature}°C</span><span class="s-reason">${houseBlock.start_time}–${houseBlock.end_time}</span>`
           : `<span class="s-reason">No active block</span>`)
-        : `<span class="s-temp">${targetT}°C</span><span class="s-reason">${reason}</span>`;
+        : `<span class="s-temp">${targetT}°C</span><span class="s-reason">${REASON_LABELS[reason] ?? reason}</span>`;
 
     const dialogHtml = this._dialog
       ? (this._dialog.mode === 'copy' ? this._renderCopyDialog() : this._renderDialog())
@@ -359,6 +364,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
           <select>${roomOpts||'<option>Loading…</option>'}</select>
         </div>
         <div class="status-bar"><span class="s-label">Now:</span>${statusHtml}</div>
+        ${this._schedule && this._following ? `<div class="status-bar"><span class="s-reason">Following house schedule</span></div>` : ''}
         ${this._schedule
           ? `<div class="grid">${rows}</div><div class="time-axis">${ticks}</div>`
           : `<div class="no-data">${this._selectedRoom?'Loading schedule…':'Select a room'}</div>`
@@ -431,35 +437,37 @@ class EnvironmentalSchedulerCard extends HTMLElement {
 
     root.querySelector('select')?.addEventListener('change', e => {
       this._selectedRoom = e.target.value;
-      this._schedule = null; this._activeResult = null;
+      this._schedule = null; this._activeResult = null; this._following = false;
       this._render(); this._doRefresh();
     });
 
+    // Following room: week is read-only, so no add, edit or copy handlers.
+    if (!this._following) {
+      // Track clicks — add block
+      root.querySelectorAll('.day-track').forEach(track => {
+        track.addEventListener('click', e => this._onTrackClick(e, track.dataset.day));
+      });
 
-    // Track clicks — add block
-    root.querySelectorAll('.day-track').forEach(track => {
-      track.addEventListener('click', e => this._onTrackClick(e, track.dataset.day));
-    });
-
-    // Block clicks — edit block
-    root.querySelectorAll('.block').forEach(block => {
-      block.addEventListener('click', e => {
-        const ds = block.dataset;
-        this._onBlockClick(e, ds.day, {
-          id: ds.blockId,
-          start_time: ds.start,
-          end_time:   ds.end,
-          temperature: parseFloat(ds.temp),
-          occupied_temperature: ds.occupied === '' ? null : parseFloat(ds.occupied),
-          enabled: ds.enabled === 'true',
+      // Block clicks — edit block
+      root.querySelectorAll('.block').forEach(block => {
+        block.addEventListener('click', e => {
+          const ds = block.dataset;
+          this._onBlockClick(e, ds.day, {
+            id: ds.blockId,
+            start_time: ds.start,
+            end_time:   ds.end,
+            temperature: parseFloat(ds.temp),
+            occupied_temperature: ds.occupied === '' ? null : parseFloat(ds.occupied),
+            enabled: ds.enabled === 'true',
+          });
         });
       });
-    });
 
-    // Copy buttons
-    root.querySelectorAll('.copy-btn').forEach(btn => {
-      btn.addEventListener('click', e => { e.stopPropagation(); this._openCopyDialog(btn.dataset.day); });
-    });
+      // Copy buttons
+      root.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', e => { e.stopPropagation(); this._openCopyDialog(btn.dataset.day); });
+      });
+    }
 
     // Dialog controls
     if (this._dialog) {
