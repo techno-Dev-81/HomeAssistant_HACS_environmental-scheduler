@@ -28,6 +28,7 @@ class SummaryReporter implements Reporter {
   onEnd(result: FullResult) {
     const benchmarks: Record<string, number> = JSON.parse(fs.readFileSync(BENCHMARKS_FILE, 'utf8'));
     const durations: Record<string, number> = {};
+    const proposed: Record<string, number> = {};
     const lines: string[] = [];
 
     const scenarios = (this.suite?.allTests() ?? []).filter(
@@ -54,6 +55,10 @@ class SummaryReporter implements Reporter {
       if (outcome !== 'skipped' && number !== undefined) {
         durations[number] = seconds;
       }
+      // Only passing scenarios propose a benchmark (user decision 2026-10-20)
+      if (outcome === 'expected' && number !== undefined) {
+        proposed[number] = seconds;
+      }
     }
 
     if (lines.length > 0) {
@@ -66,7 +71,7 @@ class SummaryReporter implements Reporter {
       path.join(runDir, 'durations.json'),
       JSON.stringify({ ...durations, total: result.duration / 1000 }, null, 2) + '\n',
     );
-    fs.writeFileSync(path.join(runDir, 'benchmarks.proposed.json'), JSON.stringify(durations, null, 2) + '\n');
+    fs.writeFileSync(path.join(runDir, 'benchmarks.proposed.json'), JSON.stringify(proposed, null, 2) + '\n');
   }
 }
 
