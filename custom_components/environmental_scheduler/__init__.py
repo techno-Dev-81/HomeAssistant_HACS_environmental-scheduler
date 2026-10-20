@@ -59,6 +59,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    store = SchedulerStore(hass)
+    await store.async_remove()
+
+
 async def _seed_defaults(store: SchedulerStore) -> None:
     for room_def in DEFAULT_ROOMS:
         room = Room(id=room_def["id"], name=room_def["name"])
