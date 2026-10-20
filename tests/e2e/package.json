@@ -1,0 +1,9 @@
+{
+  "name": "environmental-scheduler-e2e",
+  "private": true,
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "@types/ws": "8.18.2",
+    "ws": "8.22.0"
+  }
+}
