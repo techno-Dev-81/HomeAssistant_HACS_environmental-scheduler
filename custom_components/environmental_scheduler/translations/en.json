@@ -28,7 +28,8 @@
           "node_red_mode": "Node-RED mode (disable HA direct entity control)",
           "vacation_temp": "Vacation temperature (frost protection)",
           "global_away_temp": "Global away temperature",
-          "global_fallback_temp": "Global fallback temperature (no active block)"
+          "global_fallback_temp": "Global fallback temperature (no active block)",
+          "house_occupancy_entity": "House occupancy entity (occupied when on)"
         }
       },
       "manage_persons": {

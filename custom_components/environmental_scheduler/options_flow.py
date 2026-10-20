@@ -20,6 +20,7 @@ _CLIMATE_ENTITIES_SELECTOR  = selector.selector({"entity": {"domain": "climate",
 _HOT_WATER_ENTITY_SELECTOR  = selector.selector({"entity": {"domain": ["switch", "water_heater", "input_boolean"]}})
 _TEMP_SENSORS_SELECTOR      = selector.selector({"entity": {"domain": "sensor", "device_class": "temperature", "multiple": True}})
 _BINARY_SENSORS_SELECTOR    = selector.selector({"entity": {"domain": "binary_sensor", "multiple": True}})
+_OCCUPANCY_ENTITY_SELECTOR  = selector.selector({"entity": {"domain": ["binary_sensor", "input_boolean", "switch"]}})
 _AREA_SELECTOR              = selector.selector({"area": {}})
 _TEXT_SELECTOR  = selector.selector({"text": {}})
 _BOOL_SELECTOR  = selector.selector({"boolean": {}})
@@ -70,6 +71,7 @@ class EnvironmentalSchedulerOptionsFlow(config_entries.OptionsFlow):
             config.vacation_temp      = user_input["vacation_temp"]
             config.global_away_temp   = user_input["global_away_temp"]
             config.global_fallback_temp = user_input["global_fallback_temp"]
+            config.house_occupancy_entity = user_input.get("house_occupancy_entity") or None
             store.update_config(config)
             await store.async_save()
             return await self.async_step_init()
@@ -81,6 +83,10 @@ class EnvironmentalSchedulerOptionsFlow(config_entries.OptionsFlow):
                 vol.Required("vacation_temp", default=config.vacation_temp): _TEMP_SELECTOR,
                 vol.Required("global_away_temp", default=config.global_away_temp): _TEMP_SELECTOR,
                 vol.Required("global_fallback_temp", default=config.global_fallback_temp): _TEMP_SELECTOR,
+                vol.Optional(
+                    "house_occupancy_entity",
+                    description={"suggested_value": config.house_occupancy_entity},
+                ): _OCCUPANCY_ENTITY_SELECTOR,
             }),
         )
 
