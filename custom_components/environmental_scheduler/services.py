@@ -411,24 +411,22 @@ def register_services(hass: HomeAssistant) -> None:
     async def handle_copy_day(call: ServiceCall) -> ServiceResponse:
         from .models import Block
         store      = _get_store(hass)
-        room_id    = call.data[ATTR_ROOM]
+        target     = _resolve_target(store, call.data)
         source_day = call.data["source_day"]
         target_days = call.data["target_days"]
 
-        room = store.get_room(room_id)
-        if not room:
-            raise ServiceValidationError(f"Room '{room_id}' not found")
-
-        source_blocks = room.get_day(source_day)
+        source_blocks = store.get_day(target, source_day)
         copied = 0
         for day in target_days:
             if day == source_day:
                 continue
-            new_blocks = [Block.new(b.start_time, b.end_time, b.temperature, b.enabled) for b in source_blocks]
-            room.weekly_schedule[day] = new_blocks
+            new_blocks = [Block.new(b.start_time, b.end_time, b.temperature, b.enabled,
+                                    occupied_temperature=b.occupied_temperature)
+                          for b in source_blocks]
+            store.set_day(target, day, new_blocks)
             copied += 1
             hass.bus.async_fire(f"{DOMAIN}.block_changed", {
-                "room": room_id, "day": day,
+                **_target_event_data(target), "day": day,
                 "action": "day_copied", "source_day": source_day,
             })
 
