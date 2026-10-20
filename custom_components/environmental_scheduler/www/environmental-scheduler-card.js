@@ -139,7 +139,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
     const rawMin = pct * 1440;
     const start = clamp(snap30(rawMin), 0, 1410);
     const end   = clamp(start + 60, 60, 1440);
-    this._openDialog({ mode:'add', day, start, end, temp:20.0, enabled:true });
+    this._openDialog({ mode:'add', day, start, end, temp:20.0, occupied:null, enabled:true });
   }
 
   // ------------------------------------------------------------------ block click → edit dialog
@@ -152,6 +152,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
       start:   timeToMinutes(block.start_time),
       end:     timeToMinutes(block.end_time),
       temp:    block.temperature,
+      occupied: block.occupied_temperature ?? null,
       enabled: block.enabled,
     });
   }
@@ -175,6 +176,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
       start_time:  minutesToTime(d.start),
       end_time:    minutesToTime(d.end),
       temperature: d.temp,
+      occupied_temperature: d.occupied ?? null,
       enabled:     d.enabled,
     };
     if (d.blockId) data.block_id = d.blockId;
@@ -313,7 +315,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
         return `<div class="${cls}" style="left:${l}%;width:${w}%;background:${bg}"
                   data-day="${day}" data-block-id="${b.id}"
                   data-start="${b.start_time}" data-end="${b.end_time}"
-                  data-temp="${b.temperature}" data-enabled="${b.enabled}"
+                  data-temp="${b.temperature}" data-occupied="${b.occupied_temperature ?? ''}" data-enabled="${b.enabled}"
                   title="${b.start_time}–${b.end_time} · ${b.temperature}°C${!b.enabled?' (disabled)':''}">
                   <span>${b.temperature}°</span>
                 </div>`;
@@ -395,6 +397,17 @@ class EnvironmentalSchedulerCard extends HTMLElement {
               </div>
             </div>
           </label>
+          <label class="dlg-label">If house occupied (°C)
+            <div class="temp-row">
+              <input class="dlg-input temp-input" id="dlg-occ" type="number"
+                     min="5" max="35" step="0.5" value="${d.occupied ?? ''}" placeholder="Not set">
+              <div class="temp-stepper">
+                <button class="step-btn" id="occ-up">▲</button>
+                <button class="step-btn" id="occ-down">▼</button>
+              </div>
+              <button class="step-btn" id="occ-clear" title="Clear">Clear</button>
+            </div>
+          </label>
 
           ${isEdit ? `
             <label class="dlg-label toggle-row">
@@ -437,6 +450,7 @@ class EnvironmentalSchedulerCard extends HTMLElement {
           start_time: ds.start,
           end_time:   ds.end,
           temperature: parseFloat(ds.temp),
+          occupied_temperature: ds.occupied === '' ? null : parseFloat(ds.occupied),
           enabled: ds.enabled === 'true',
         });
       });
@@ -469,6 +483,23 @@ class EnvironmentalSchedulerCard extends HTMLElement {
         this._dialog.temp = Math.max(5, Math.round((this._dialog.temp - 0.5) * 2) / 2);
         this._render();
       });
+      root.querySelector('#occ-up')?.addEventListener('click', () => {
+        this._syncDialogInputs();
+        const base = this._dialog.occupied ?? this._dialog.temp;
+        this._dialog.occupied = clamp(Math.round((base + 0.5) * 2) / 2, 5, 35);
+        this._render();
+      });
+      root.querySelector('#occ-down')?.addEventListener('click', () => {
+        this._syncDialogInputs();
+        const base = this._dialog.occupied ?? this._dialog.temp;
+        this._dialog.occupied = clamp(Math.round((base - 0.5) * 2) / 2, 5, 35);
+        this._render();
+      });
+      root.querySelector('#occ-clear')?.addEventListener('click', () => {
+        this._syncDialogInputs();
+        this._dialog.occupied = null;
+        this._render();
+      });
       root.querySelector('#dlg-copy-confirm')?.addEventListener('click', () => this._executeCopy());
       root.querySelector('.dlg-overlay')?.addEventListener('click', e => {
         if (e.target === e.currentTarget) this._closeDialog();
@@ -484,6 +515,11 @@ class EnvironmentalSchedulerCard extends HTMLElement {
     if (start) this._dialog.start = timeToMinutes(start);
     if (end)   this._dialog.end   = timeToMinutes(end);
     if (!isNaN(temp)) this._dialog.temp = temp;
+    const occEl = root.querySelector('#dlg-occ');
+    if (occEl) {
+      const occ = parseFloat(occEl.value);
+      this._dialog.occupied = occEl.value === '' || isNaN(occ) ? null : occ;
+    }
   }
 
   // ------------------------------------------------------------------ styles
