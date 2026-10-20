@@ -62,6 +62,30 @@ class HouseScheduleStorageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(store.get_rooms(), [room])
         self.assertEqual(store.get_room("lounge"), room)
 
+    async def test_remove_then_new_store_loads_no_rooms(self) -> None:
+        hass = ha_stubs.FakeHass()
+        store = SchedulerStore(hass)
+        await store.async_load()
+        store.add_room(Room(id="lounge", name="Lounge", climate_entities=["climate.lounge"]))
+        await store.async_save()
+        await store.async_remove()
+
+        reloaded = SchedulerStore(hass)
+        await reloaded.async_load()
+        self.assertEqual(reloaded.get_rooms(), [])
+
+    async def test_save_without_remove_new_store_loads_saved_rooms(self) -> None:
+        hass = ha_stubs.FakeHass()
+        store = SchedulerStore(hass)
+        await store.async_load()
+        room = Room(id="lounge", name="Lounge", climate_entities=["climate.lounge"])
+        store.add_room(room)
+        await store.async_save()
+
+        reloaded = SchedulerStore(hass)
+        await reloaded.async_load()
+        self.assertEqual(reloaded.get_rooms(), [room])
+
 
 def _store_with_room():
     store = _new_store()

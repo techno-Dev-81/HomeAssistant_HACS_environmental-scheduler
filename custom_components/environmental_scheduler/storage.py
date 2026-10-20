@@ -54,6 +54,9 @@ class SchedulerStore:
         }
         await self._store.async_save(data)
 
+    async def async_remove(self) -> None:
+        await self._store.async_remove()
+
     # ------------------------------------------------------------------
     # Rooms
     # ------------------------------------------------------------------
