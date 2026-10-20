@@ -19,7 +19,6 @@ Home Assistant custom integration for per-room temperature scheduling.
 - Room `entity_type` is derived (not stored): `hot_water` if `hot_water_entity` set, else `heating`
 - Presence logic: room heats if ANY assigned person is home; away temp when ALL are away
 - `preheat_offset_minutes` is a Node-RED learned value — not user-configurable in the UI
-- Door/window sensor configuration is NOT yet implemented in the UI — do not add without being asked
 - Per-room away/fallback temperature overrides are NOT in the options flow — do not add without being asked
 
 ## Stack
