@@ -1,7 +1,14 @@
 import { test, expect } from '../helpers/fixtures';
 import { HaWs } from '../helpers/ha-ws';
 import { login } from '../helpers/login';
-import { addIntegration, openDevicesAndServices, removeIntegration } from '../helpers/integration-ui';
+import {
+  addIntegration,
+  deleteRoomInOptionsFlow,
+  finishOptionsFlow,
+  openDevicesAndServices,
+  openIntegrationOptions,
+  removeIntegration,
+} from '../helpers/integration-ui';
 
 // Fresh start: serial setup tests, run in file order (R6a, R7, R7a).
 test.describe.configure({ mode: 'serial' });
@@ -332,6 +339,35 @@ test('fresh addition', async ({ page }) => {
       .toEqual(expect.arrayContaining(SEEDED_ROOM_IDS));
     console.log(`rooms after addition: ${ids.join(', ')}`);
     expect(ids.filter(isE2e), 'e2e_ rooms after addition').toEqual([]);
+  } finally {
+    ha.close();
+  }
+});
+
+// R6: delete every room through the options flow, in the browser.
+test('delete seeded rooms', async ({ page }) => {
+  const ha = await HaWs.connect();
+  try {
+    const result = await ha.callServiceWithResponse(DOMAIN, 'get_rooms');
+    const names = (result.response.rooms as Json[]).map((r) => String(r.name));
+    console.log(`rooms to delete: ${names.join(', ')}`);
+
+    await login(page);
+    await openDevicesAndServices(page);
+    await openIntegrationOptions(page, INTEGRATION_NAME);
+
+    const deleteStart = Date.now();
+    for (const name of names) {
+      const roomStart = Date.now();
+      await deleteRoomInOptionsFlow(page, name);
+      console.log(`deleted "${name}" in ${Date.now() - roomStart} ms`);
+    }
+    console.log(`${names.length} rooms deleted in ${Date.now() - deleteStart} ms`);
+    await finishOptionsFlow(page);
+
+    await expect
+      .poll(async () => roomIds(ha), { message: 'no rooms remain', timeout: 15_000 })
+      .toEqual([]);
   } finally {
     ha.close();
   }
