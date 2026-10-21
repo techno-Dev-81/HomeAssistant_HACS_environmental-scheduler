@@ -1,0 +1,180 @@
+import { test, expect } from '../helpers/fixtures';
+import { HaWs } from '../helpers/ha-ws';
+
+// Fresh start (R6a): recreate the simulated devices through the HA API.
+
+type Json = Record<string, any>;
+
+const INPUT_BOOLEANS = ['e2e_house_occupied', 'e2e_hot_water'];
+const TARGET_NUMBER = 'e2e_target_temp';
+const THERMOSTAT_NAME = 'e2e_thermostat';
+
+const EXPECTED_ENTITIES = [
+  'input_boolean.e2e_house_occupied',
+  'input_boolean.e2e_hot_water',
+  'input_number.e2e_target_temp',
+  'climate.e2e_thermostat',
+];
+
+const OLD_ENTITIES = ['input_boolean.e2e_heater', 'input_number.e2e_room_temp', 'sensor.e2e_room_temperature'];
+
+function isE2e(value: unknown): boolean {
+  return typeof value === 'string' && value.startsWith('e2e_');
+}
+
+function menuOptions(step: Json): string[] {
+  const m = step.menu_options;
+  return Array.isArray(m) ? m : Object.keys(m ?? {});
+}
+
+function describeStep(step: Json): string {
+  const fields = (step.data_schema ?? []).map((f: Json) => `${f.name}${f.required ? '*' : ''}`);
+  return `step "${step.step_id}" type "${step.type}" fields [${fields.join(', ')}] menu [${menuOptions(step).join(', ')}] errors ${JSON.stringify(step.errors ?? {})}`;
+}
+
+// Builds user input for a form step from its data_schema: known fields get the
+// given value and optional fields not given stay unset. Every required field
+// must be given by the test (no flow default is used); otherwise the flow does
+// not match this HA version and the setup stops naming the step and field.
+function formInput(handler: string, step: Json, values: Json): Json {
+  const schema: Json[] = step.data_schema ?? [];
+  const input: Json = {};
+  for (const field of schema) {
+    if (field.name in values) {
+      input[field.name] = values[field.name];
+    } else if (field.required) {
+      throw new Error(`${handler} flow: no value for required field "${field.name}" in ${describeStep(step)}`);
+    }
+  }
+  for (const key of Object.keys(values)) {
+    if (!schema.some((f) => f.name === key)) {
+      throw new Error(`${handler} flow: field "${key}" not offered in ${describeStep(step)}`);
+    }
+  }
+  return input;
+}
+
+async function deleteLeftovers(ha: HaWs): Promise<void> {
+  const registry: Json[] = await ha.command('config/entity_registry/list');
+  for (const entry of (await ha.listConfigEntries('template')) as Json[]) {
+    const entities = registry.filter((e) => e.config_entry_id === entry.entry_id);
+    const hasE2eEntity = entities.some((e) => isE2e(String(e.entity_id).split('.')[1]));
+    if (isE2e(entry.title) || hasE2eEntity) {
+      await ha.deleteConfigEntry(entry.entry_id);
+    }
+  }
+
+  for (const domain of ['input_boolean', 'input_number', 'input_select'] as const) {
+    for (const helper of await ha.listHelpers(domain)) {
+      if (isE2e(helper.id)) {
+        await ha.deleteHelper(domain, helper.id as string);
+      }
+    }
+  }
+}
+
+async function createThermostat(ha: HaWs): Promise<void> {
+  let step: Json = await ha.startConfigFlow('template');
+  console.log(`template flow: ${describeStep(step)}`);
+  if (step.type !== 'menu' || !menuOptions(step).includes('climate')) {
+    throw new Error(`template flow: expected a menu offering "climate", got ${describeStep(step)}`);
+  }
+  step = await ha.configFlowStep(step.flow_id, { next_step_id: 'climate' });
+  console.log(`template flow: ${describeStep(step)}`);
+  if (step.type !== 'form') {
+    throw new Error(`template flow: expected the climate form, got ${describeStep(step)}`);
+  }
+  // No hvac_mode template: the climate holds its own mode, so set_hvac_mode
+  // has nothing to do. The target is read from and written to the input_number.
+  step = await ha.configFlowStep(
+    step.flow_id,
+    formInput('template', step, {
+      name: THERMOSTAT_NAME,
+      hvac_modes: "{{ ['heat', 'auto', 'off'] }}",
+      set_hvac_mode: [],
+      target_temperature: "{{ states('input_number.e2e_target_temp') | float }}",
+      set_temperature: [
+        {
+          action: 'input_number.set_value',
+          target: { entity_id: 'input_number.e2e_target_temp' },
+          data: { value: '{{ temperature }}' },
+        },
+      ],
+    }),
+  );
+  console.log(`template flow: ${describeStep(step)}`);
+  if (step.type !== 'create_entry') {
+    throw new Error(`template flow: expected create_entry, got ${describeStep(step)}`);
+  }
+}
+
+async function entityState(ha: HaWs, entityId: string): Promise<Json | undefined> {
+  const states = await ha.getStates();
+  return states.find((s) => s.entity_id === entityId) as Json | undefined;
+}
+
+async function stateOf(ha: HaWs, entityId: string): Promise<string | undefined> {
+  return (await entityState(ha, entityId))?.state;
+}
+
+test('simulated devices', async () => {
+  const ha = await HaWs.connect();
+  try {
+    await deleteLeftovers(ha);
+
+    for (const name of INPUT_BOOLEANS) {
+      await ha.createHelper('input_boolean', { name });
+    }
+    await ha.createHelper('input_number', { name: TARGET_NUMBER, min: 5, max: 35, step: 0.5 });
+
+    await createThermostat(ha);
+
+    await expect
+      .poll(async () => stateOf(ha, 'climate.e2e_thermostat'), { timeout: 15_000 })
+      .not.toBeUndefined();
+    console.log(`climate.e2e_thermostat before set_hvac_mode: ${await stateOf(ha, 'climate.e2e_thermostat')}`);
+
+    await ha.command('call_service', {
+      domain: 'climate',
+      service: 'set_hvac_mode',
+      service_data: { hvac_mode: 'heat' },
+      target: { entity_id: 'climate.e2e_thermostat' },
+    });
+
+    for (const entityId of EXPECTED_ENTITIES) {
+      await expect
+        .poll(async () => stateOf(ha, entityId), { message: `${entityId} exists`, timeout: 15_000 })
+        .not.toBeUndefined();
+    }
+    await expect
+      .poll(async () => stateOf(ha, 'climate.e2e_thermostat'), { timeout: 15_000 })
+      .toBe('heat');
+    console.log(`climate.e2e_thermostat after set_hvac_mode: ${await stateOf(ha, 'climate.e2e_thermostat')}`);
+
+    // No duplicate (`_2` and so on) of a created id, and no device from
+    // before amendment 002.2, is left.
+    const ids = (await ha.getStates()).map((st) => String(st.entity_id));
+    const duplicates = ids.filter((id) => EXPECTED_ENTITIES.some((e) => new RegExp(`^${e.replace('.', '\\.')}_\\d+$`).test(id)));
+    expect(duplicates, 'duplicate e2e entity ids').toEqual([]);
+    const old = ids.filter((id) => OLD_ENTITIES.includes(id));
+    expect(old, 'old e2e entity ids').toEqual([]);
+
+    const climate = await entityState(ha, 'climate.e2e_thermostat');
+    expect(climate?.attributes?.hvac_modes).toEqual(expect.arrayContaining(['heat', 'auto', 'off']));
+
+    await ha.command('call_service', {
+      domain: 'climate',
+      service: 'set_temperature',
+      service_data: { temperature: 21 },
+      target: { entity_id: 'climate.e2e_thermostat' },
+    });
+    await expect
+      .poll(async () => (await entityState(ha, 'climate.e2e_thermostat'))?.attributes?.temperature, {
+        message: 'climate.e2e_thermostat target follows set_temperature',
+        timeout: 15_000,
+      })
+      .toBe(21);
+  } finally {
+    ha.close();
+  }
+});

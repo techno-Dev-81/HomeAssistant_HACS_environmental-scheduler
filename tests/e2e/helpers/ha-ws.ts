@@ -177,17 +177,17 @@ export class HaWs {
     return this.rest('POST', `/api/config/config_entries/options/flow/${flowId}`, userInput);
   }
 
-  // --- Helpers (input_boolean, input_number) ---
+  // --- Helpers (input_boolean, input_number, input_select) ---
 
-  createHelper(domain: 'input_boolean' | 'input_number', fields: Json): Promise<any> {
+  createHelper(domain: 'input_boolean' | 'input_number' | 'input_select', fields: Json): Promise<any> {
     return this.command(`${domain}/create`, fields);
   }
 
-  listHelpers(domain: 'input_boolean' | 'input_number'): Promise<Json[]> {
+  listHelpers(domain: 'input_boolean' | 'input_number' | 'input_select'): Promise<Json[]> {
     return this.command(`${domain}/list`);
   }
 
-  deleteHelper(domain: 'input_boolean' | 'input_number', helperId: string): Promise<any> {
+  deleteHelper(domain: 'input_boolean' | 'input_number' | 'input_select', helperId: string): Promise<any> {
     return this.command(`${domain}/delete`, { [`${domain}_id`]: helperId });
   }
 
