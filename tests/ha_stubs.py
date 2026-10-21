@@ -12,6 +12,7 @@ import copy
 import importlib.util
 import sys
 import types
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Keep the test run from writing __pycache__ into custom_components/.
@@ -159,6 +160,31 @@ def async_track_time_interval(hass, action, interval, *args, **kwargs):
 
 
 # ----------------------------------------------------------------------
+# homeassistant.util.dt
+# ----------------------------------------------------------------------
+
+class _DtUtil(types.ModuleType):
+    """Stand-in for homeassistant.util.dt: HA's configured time zone.
+
+    DEFAULT_TIME_ZONE is UTC unless a test sets it. As in HA, as_local
+    treats a naive datetime as already in the default zone.
+    """
+
+    DEFAULT_TIME_ZONE = timezone.utc
+
+    def set_default_time_zone(self, time_zone) -> None:
+        self.DEFAULT_TIME_ZONE = time_zone
+
+    def as_local(self, dattim: datetime) -> datetime:
+        if dattim.tzinfo is None:
+            dattim = dattim.replace(tzinfo=self.DEFAULT_TIME_ZONE)
+        return dattim.astimezone(self.DEFAULT_TIME_ZONE)
+
+    def now(self) -> datetime:
+        return datetime.now(self.DEFAULT_TIME_ZONE)
+
+
+# ----------------------------------------------------------------------
 # Registration and loading
 # ----------------------------------------------------------------------
 
@@ -181,13 +207,18 @@ def install_ha_stubs() -> None:
     )
     helpers = _module("homeassistant.helpers", storage=storage, event=event)
     helpers.__path__ = []
-    root = _module("homeassistant", core=core, helpers=helpers)
+    dt = _DtUtil("homeassistant.util.dt")
+    util = _module("homeassistant.util", dt=dt)
+    util.__path__ = []
+    root = _module("homeassistant", core=core, helpers=helpers, util=util)
     root.__path__ = []
     sys.modules["homeassistant"] = root
     sys.modules["homeassistant.core"] = core
     sys.modules["homeassistant.helpers"] = helpers
     sys.modules["homeassistant.helpers.storage"] = storage
     sys.modules["homeassistant.helpers.event"] = event
+    sys.modules["homeassistant.util"] = util
+    sys.modules["homeassistant.util.dt"] = dt
 
 
 def load_modules() -> dict[str, types.ModuleType]:

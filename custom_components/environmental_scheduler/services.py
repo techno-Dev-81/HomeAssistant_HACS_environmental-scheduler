@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, HOUSE_MODES
 from .storage import SchedulerStore
@@ -166,7 +166,7 @@ def register_services(hass: HomeAssistant) -> None:
         store = _get_store(hass)
         room_id = call.data[ATTR_ROOM]
         try:
-            result = store.get_active_block(room_id, datetime.now())
+            result = store.get_active_block(room_id, dt_util.now())
         except ValueError as e:
             raise ServiceValidationError(str(e)) from e
         return result
@@ -465,7 +465,7 @@ def register_services(hass: HomeAssistant) -> None:
     async def handle_get_house_status(call: ServiceCall) -> ServiceResponse:
         store   = _get_store(hass)
         config  = store.get_config()
-        now     = datetime.now()
+        now     = dt_util.now()
         rooms   = store.get_rooms()
 
         room_statuses = []
@@ -595,7 +595,7 @@ def register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(f"Room '{room_id}' not found")
         room = store.get_room(room_id)
         try:
-            upcoming = store.get_upcoming_blocks(room_id, datetime.now(), limit)
+            upcoming = store.get_upcoming_blocks(room_id, dt_util.now(), limit)
         except ValueError as e:
             raise ServiceValidationError(str(e)) from e
         return {

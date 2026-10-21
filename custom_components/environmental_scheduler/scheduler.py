@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .storage import SchedulerStore
@@ -46,6 +47,8 @@ class EnvironmentalScheduler:
         _LOGGER.debug("[EnvScheduler] Scheduler loop stopped")
 
     async def _tick(self, now: datetime) -> None:
+        # HA passes UTC; blocks are in HA's configured local time
+        now = dt_util.as_local(now)
         today = now.strftime("%Y-%m-%d")
         if self._last_reset_date != today:
             self._fired_preheat.clear()

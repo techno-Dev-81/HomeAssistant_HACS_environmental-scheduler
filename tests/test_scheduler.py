@@ -1,8 +1,10 @@
 """Scheduler tests for plan 001 (house and conditional schedules)."""
 from __future__ import annotations
 
+import sys
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import ha_stubs
 
@@ -161,6 +163,34 @@ class OccupancyChangeTests(unittest.IsolatedAsyncioTestCase):
         hass.states.set(self.OCCUPANCY_ENTITY, "on")
         await scheduler._tick(self.NEXT_TICK)
         self.assertEqual(self._set_temperatures(hass), [18.0, 21.0])
+
+
+class LocalTimeTickTests(unittest.IsolatedAsyncioTestCase):
+    # HA passes the tick a UTC time. 2026-10-21 17:00 UTC is 18:00 BST on a
+    # Wednesday in Europe/London, inside a 17:45 to 18:45 local block.
+    UTC_TICK = datetime(2026, 10, 21, 17, 0, tzinfo=timezone.utc)
+
+    def setUp(self) -> None:
+        dt_util = sys.modules["homeassistant.util.dt"]
+        previous = dt_util.DEFAULT_TIME_ZONE
+        dt_util.set_default_time_zone(ZoneInfo("Europe/London"))
+        self.addCleanup(dt_util.set_default_time_zone, previous)
+
+    async def test_utc_tick_in_bst_resolves_block_at_local_time(self) -> None:
+        hass, scheduler = _new_scheduler()
+        store = scheduler._store
+        store.get_config().node_red_mode = False
+        room = Room(id="lounge", name="Lounge", climate_entities=["climate.lounge"])
+        room.weekly_schedule["wednesday"] = [Block.new("17:45", "18:45", 19.0)]
+        store.add_room(room)
+
+        await scheduler._tick(self.UTC_TICK)
+
+        temperatures = [
+            call["data"]["temperature"] for call in hass.services.calls
+            if call["domain"] == "climate" and call["service"] == "set_temperature"
+        ]
+        self.assertEqual(temperatures, [19.0])
 
 
 if __name__ == "__main__":
