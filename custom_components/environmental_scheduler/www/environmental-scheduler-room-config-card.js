@@ -416,8 +416,8 @@ class EnvironmentalSchedulerRoomConfigCard extends HTMLElement {
     panel.querySelectorAll('.tab').forEach(el => {
       el.addEventListener('click', () => { this._tab = el.dataset.tab; this._renderDetail(); });
     });
-    panel.getElementById('save-btn').addEventListener('click', () => this._save());
-    panel.getElementById('delete-btn').addEventListener('click', () => this._confirmDelete());
+    panel.querySelector('#save-btn').addEventListener('click', () => this._save());
+    panel.querySelector('#delete-btn').addEventListener('click', () => this._confirmDelete());
 
     this._renderTabContent();
   }
