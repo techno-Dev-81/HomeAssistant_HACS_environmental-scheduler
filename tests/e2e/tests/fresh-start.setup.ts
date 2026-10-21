@@ -1,7 +1,9 @@
 import { test, expect } from '../helpers/fixtures';
 import { HaWs } from '../helpers/ha-ws';
+import { login } from '../helpers/login';
 
-// Fresh start (R6a): recreate the simulated devices through the HA API.
+// Fresh start: serial setup tests, run in file order (R6a, R7, R7a).
+test.describe.configure({ mode: 'serial' });
 
 type Json = Record<string, any>;
 
@@ -176,5 +178,85 @@ test('simulated devices', async () => {
       .toBe(21);
   } finally {
     ha.close();
+  }
+});
+
+// R7a: the four card files the integration serves, and the path tail that
+// identifies each file under any other prefix.
+const CARD_RESOURCES = [
+  { url: '/environmental_scheduler/static/environmental-scheduler-card.js', tail: 'environmental-scheduler-card.js' },
+  { url: '/environmental_scheduler/static/environmental-scheduler-room-config-card.js', tail: 'environmental-scheduler-room-config-card.js' },
+  { url: '/environmental_scheduler/static/environmental-scheduler-overview-card.js', tail: 'environmental-scheduler-overview-card.js' },
+  { url: '/environmental_scheduler/static/skins/lcars/overview-card.js', tail: 'skins/lcars/overview-card.js' },
+];
+
+// The url_path and title can be extended per test suite (for example
+// "E2E Test - <suite>") if more test dashboards are needed later.
+const DASHBOARD = 'e2e-test';
+const DASHBOARD_TITLE = 'E2E Test';
+
+const CARD_TYPES = [
+  'environmental-scheduler-card',
+  'environmental-scheduler-room-config-card',
+  'environmental-scheduler-overview-card',
+  'environmental-scheduler-overview-card-lcars',
+];
+
+// A resource URL without its query (so `?v=` is ignored), as a path.
+function resourcePath(url: string): string {
+  return new URL(url, 'http://resource.invalid').pathname;
+}
+
+test('card resources and dashboard', async ({ page }) => {
+  const ha = await HaWs.connect();
+  try {
+    const resources = (await ha.listResources()) as Json[];
+    console.log(`lovelace resources: ${resources.length} listed`);
+
+    // Stop before adding anything if a card file is registered under another prefix.
+    const duplicates: string[] = [];
+    for (const { url, tail } of CARD_RESOURCES) {
+      for (const r of resources) {
+        const path = resourcePath(String(r.url));
+        if (path !== url && path.endsWith(tail)) {
+          duplicates.push(String(r.url));
+        }
+      }
+    }
+    if (duplicates.length > 0) {
+      throw new Error(`card resource registered under another address: ${duplicates.join(', ')}`);
+    }
+
+    // Add each missing card resource. No resource is removed.
+    for (const { url } of CARD_RESOURCES) {
+      if (resources.some((r) => resourcePath(String(r.url)) === url)) {
+        console.log(`resource present: ${url}`);
+      } else {
+        await ha.createResource(url, 'module');
+        console.log(`resource created: ${url}`);
+      }
+    }
+
+    // The e2e-test dashboard: create it if missing, then replace its config.
+    // No other dashboard is read or written.
+    const dashboards = await ha.listDashboards();
+    if (dashboards.some((d) => d.url_path === DASHBOARD)) {
+      console.log(`dashboard present: ${DASHBOARD}`);
+    } else {
+      await ha.createDashboard({ url_path: DASHBOARD, title: DASHBOARD_TITLE });
+      console.log(`dashboard created: ${DASHBOARD}`);
+    }
+    await ha.saveLovelaceConfig(DASHBOARD, {
+      views: [{ cards: CARD_TYPES.map((type) => ({ type: `custom:${type}` })) }],
+    });
+  } finally {
+    ha.close();
+  }
+
+  // In the browser, the dashboard renders the four card elements.
+  await login(page);
+  await page.goto(new URL(`/${DASHBOARD}/0`, process.env.HA_URL).toString());
+  for (const type of CARD_TYPES) {
+    await expect(page.locator(type), `${type} on ${DASHBOARD}`).toHaveCount(1, { timeout: 15_000 });
   }
 });

@@ -18,7 +18,7 @@ export async function login(page: Page): Promise<void> {
 
   await page.goto(url);
   await page.getByLabel('Username').fill(username);
-  await page.getByLabel('Password').fill(password);
+  await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Log in' }).click();
 
   await page.waitForURL((u) => !u.pathname.startsWith('/auth/authorize'));
