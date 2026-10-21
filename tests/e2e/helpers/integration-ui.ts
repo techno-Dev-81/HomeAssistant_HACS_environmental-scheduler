@@ -60,10 +60,13 @@ export async function deleteRoomInOptionsFlow(page: Page, roomName: string): Pro
   await flow.getByRole('button', { name: 'Submit' }).click();
 }
 
-// In the options flow menu: Done, which closes the flow.
+// In the options flow menu: Done, which saves the options and shows a
+// Success step ("Options successfully saved."); Finish on that step closes
+// the flow.
 export async function finishOptionsFlow(page: Page): Promise<void> {
   const flow = page.locator('dialog-data-entry-flow');
   await flow.getByText('Done', { exact: true }).click();
+  await flow.getByRole('button', { name: 'Finish' }).click({ timeout: TIMEOUT });
   await flow.waitFor({ state: 'hidden', timeout: TIMEOUT });
 }
 
@@ -86,6 +89,18 @@ export interface PickedEntity {
   friendlyName: string;
 }
 
+// A search to read the options an entity picker offers: the search text, and
+// the names that must be listed before the options are read. By default an
+// option lists a name when one of its lines is exactly the name. With
+// `words`, it lists a name when its text holds every word of the name, as
+// the picker can show an entity's friendly name split over the entity name
+// and its device.
+export interface OfferedSearch {
+  search: string;
+  shown: string[];
+  words?: boolean;
+}
+
 // In an open options flow form: open the entity picker whose label starts
 // with `label`, search by the entity id and pick the single option shown
 // with the entity's friendly name.
@@ -94,11 +109,35 @@ export interface PickedEntity {
 // The search popup opens inside the picker; it is scoped by its element tag
 // because its dialog role holds a nested dialog and its name differs between
 // a single picker (the label) and a multiple one ("Select option").
-async function pickEntity(page: Page, { label, entityId, friendlyName }: PickedEntity): Promise<void> {
+// For each search in `offers`, the popup is first searched for its text and
+// the text of every option shown is read, once each of its `shown` names is
+// listed (so the list has loaded before it is read). The texts of all
+// searches are returned together.
+async function pickEntity(
+  page: Page,
+  { label, entityId, friendlyName }: PickedEntity,
+  offers: OfferedSearch[] = [],
+): Promise<string[]> {
   const flow = page.locator('dialog-data-entry-flow');
   const picker = flow.locator('ha-selector-entity').filter({ hasText: label });
   await picker.locator('ha-picker-field').last().click();
   const popup = picker.locator('wa-popover');
+  const offered: string[] = [];
+  for (const offer of offers) {
+    await popup.getByRole('textbox').fill(offer.search, { timeout: TIMEOUT });
+    for (const name of offer.shown) {
+      let item = popup.locator('ha-combo-box-item');
+      if (offer.words) {
+        for (const word of name.split(/\s+/).filter(Boolean)) {
+          item = item.filter({ hasText: word });
+        }
+      } else {
+        item = item.filter({ has: page.getByText(name, { exact: true }) });
+      }
+      await item.first().waitFor({ timeout: TIMEOUT });
+    }
+    offered.push(...(await popup.locator('ha-combo-box-item').allInnerTexts()));
+  }
   await popup.getByRole('textbox').fill(entityId, { timeout: TIMEOUT });
   // Options are scoped by element tag: their text is slotted, so it is not
   // inside the listitem role in the DOM.
@@ -110,6 +149,7 @@ async function pickEntity(page: Page, { label, entityId, friendlyName }: PickedE
   }
   await option.click();
   await popup.waitFor({ state: 'hidden', timeout: TIMEOUT });
+  return offered;
 }
 
 // In the options flow menu: Edit a room, pick the room, Submit, set each
@@ -133,11 +173,31 @@ export async function setRoomEntitiesInOptionsFlow(
 
 // In the options flow menu: Global settings, pick the house occupancy entity,
 // Submit. The other fields keep the values the form shows. The flow returns
-// to its menu.
-export async function setHouseOccupancyInOptionsFlow(page: Page, entityId: string, friendlyName: string): Promise<void> {
+// to its menu. With `offers`, returns the options the picker showed for those
+// searches before the pick (see pickEntity).
+export async function setHouseOccupancyInOptionsFlow(
+  page: Page,
+  entityId: string,
+  friendlyName: string,
+  offers: OfferedSearch[] = [],
+): Promise<string[]> {
   const flow = page.locator('dialog-data-entry-flow');
   await flow.getByText('Global settings', { exact: true }).click();
-  await pickEntity(page, { label: 'House occupancy entity', entityId, friendlyName });
+  const offered = await pickEntity(page, { label: 'House occupancy entity', entityId, friendlyName }, offers);
+  await flow.getByRole('button', { name: 'Submit' }).click();
+  await flow.getByText('Global settings', { exact: true }).waitFor({ timeout: TIMEOUT });
+  return offered;
+}
+
+// In the options flow menu: Global settings, clear the house occupancy entity
+// with the picker's clear button, Submit. The flow returns to its menu.
+// The clear button has no accessible name, so it is found by its HA element
+// tag and class.
+export async function clearHouseOccupancyInOptionsFlow(page: Page): Promise<void> {
+  const flow = page.locator('dialog-data-entry-flow');
+  await flow.getByText('Global settings', { exact: true }).click();
+  const picker = flow.locator('ha-selector-entity').filter({ hasText: 'House occupancy entity' });
+  await picker.locator('ha-icon-button.clear').click({ timeout: TIMEOUT });
   await flow.getByRole('button', { name: 'Submit' }).click();
   await flow.getByText('Global settings', { exact: true }).waitFor({ timeout: TIMEOUT });
 }
