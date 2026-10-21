@@ -22,9 +22,9 @@ Paths under `custom_components/` are given relative to `custom_components/enviro
 ## User steps
 | ID | Task | Done when | Depends | Status | Evidence |
 |---|---|---|---|---|---|
-| U1 | USER: after WP1 is committed and pushed (the push needs your per-command yes), pull `beta` on the test container and restart HA | user reports deployed and restarted | T1.3 | blocked | |
-| U2 | USER: create `tests/e2e/.env` with `HA_URL`, `HA_TOKEN`, `HA_USERNAME`, `HA_PASSWORD` (an HA admin user) and `E2E_CONFIRM_TEST_INSTANCE=yes`; remove the old `/environmental-scheduler/0` dashboard | user reports done | T2.6 | blocked | |
-| U3 | USER: give standing permission for Claude to run E2E during this implement phase, knowing that each run deletes all integration data and the `e2e_` helpers on the test instance | user says yes | none | blocked | |
+| U1 | USER: after WP1 is committed and pushed (the push needs your per-command yes), pull `beta` on the test container and restart HA | user reports deployed and restarted | T1.3 | done | user reported deployed and restarted 2026-10-21 (origin/beta 7866858) |
+| U2 | USER: create `tests/e2e/.env` with `HA_URL`, `HA_TOKEN`, `HA_USERNAME`, `HA_PASSWORD` (an HA admin user) and `E2E_CONFIRM_TEST_INSTANCE=yes`; remove the old `/environmental-scheduler/0` dashboard | user reports done | T2.6 | done | user reported env file created and old dashboard removed 2026-10-21; file present in the working copy and git-ignored (checked without opening) |
+| U3 | USER: give standing permission for Claude to run E2E during this implement phase, knowing that each run deletes all integration data and the `e2e_` helpers on the test instance | user says yes | none | done | user gave standing permission for E2E runs during implement 2026-10-21 |
 
 ## WP1: Removal deletes data
 | ID | Task | Done when | Depends | Status | Evidence |
@@ -69,7 +69,7 @@ Each test is titled "N. User: when I ..., I should see ...", from the scenario t
 ## WP5: Constitution
 | ID | Task | Done when | Depends | Status | Evidence |
 |---|---|---|---|---|---|
-| T5.1 | Draft `.sdd/constitution.3-e2e-test-command.md`:<br>- E2E test command `bash tests/e2e/run.sh`;<br>- in the test runner notes, replace amendment 1's manual-checklist sentence, and name Node, Playwright 1.60.0, Chromium, `ws`, and Python stdlib for redaction | the user approves the amendment | T2.6 | todo | |
+| T5.1 | Draft `.sdd/constitution.3-e2e-test-command.md`:<br>- E2E test command `bash tests/e2e/run.sh`;<br>- in the test runner notes, replace amendment 1's manual-checklist sentence, and name Node, Playwright 1.60.0, Chromium, `ws`, and Python stdlib for redaction | the user approves the amendment | T2.6 | doing | |
 
 Status values: todo, doing, done, blocked. (T4.7 is not used, to avoid confusion with tasks amendment 001.1 T4.7.)
 
