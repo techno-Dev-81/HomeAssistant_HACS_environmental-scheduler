@@ -1,6 +1,7 @@
 import { test, expect } from '../helpers/fixtures';
 import { HaWs } from '../helpers/ha-ws';
 import { login } from '../helpers/login';
+import { addIntegration, openDevicesAndServices, removeIntegration } from '../helpers/integration-ui';
 
 // Fresh start: serial setup tests, run in file order (R6a, R7, R7a).
 test.describe.configure({ mode: 'serial' });
@@ -258,5 +259,80 @@ test('card resources and dashboard', async ({ page }) => {
   await page.goto(new URL(`/${DASHBOARD}/0`, process.env.HA_URL).toString());
   for (const type of CARD_TYPES) {
     await expect(page.locator(type), `${type} on ${DASHBOARD}`).toHaveCount(1, { timeout: 15_000 });
+  }
+});
+
+const DOMAIN = 'environmental_scheduler';
+const INTEGRATION_NAME = 'Environmental Scheduler';
+
+// const.py DEFAULT_ROOMS: the rooms seeded on an empty store (PB3).
+const SEEDED_ROOM_IDS = [
+  'hallway',
+  'living_room',
+  'office',
+  'toilet',
+  'landing',
+  'guest_bedroom',
+  'spare_bedroom',
+  'bathroom',
+  'dressing_room',
+  'bedroom',
+  'en_suite',
+  'open_plan',
+];
+
+async function roomIds(ha: HaWs): Promise<string[]> {
+  const result = await ha.callServiceWithResponse(DOMAIN, 'get_rooms');
+  return (result.response.rooms as Json[]).map((r) => String(r.id));
+}
+
+// R5: remove the integration if present and add it again, in the browser.
+test('fresh addition', async ({ page }) => {
+  const ha = await HaWs.connect();
+  try {
+    await login(page);
+    await openDevicesAndServices(page);
+
+    if ((await ha.listConfigEntries(DOMAIN)).length > 0) {
+      console.log(`rooms before removal: ${(await roomIds(ha)).join(', ')}`);
+      const removeStart = Date.now();
+      await removeIntegration(page, INTEGRATION_NAME);
+      await expect
+        .poll(async () => (await ha.listConfigEntries(DOMAIN)).length, {
+          message: `${DOMAIN} config entry removed`,
+          timeout: 30_000,
+        })
+        .toBe(0);
+      console.log(`integration removed in ${Date.now() - removeStart} ms`);
+      await openDevicesAndServices(page);
+    } else {
+      console.log('integration not present, nothing to remove');
+    }
+
+    const addStart = Date.now();
+    await addIntegration(page, INTEGRATION_NAME);
+    await expect
+      .poll(async () => (await ha.listConfigEntries(DOMAIN)).map((e) => e.state), {
+        message: `${DOMAIN} config entry added and loaded`,
+        timeout: 30_000,
+      })
+      .toEqual(['loaded']);
+    console.log(`integration added in ${Date.now() - addStart} ms`);
+
+    // R4, PB3: no room from a previous run remains and the defaults are seeded.
+    let ids: string[] = [];
+    await expect
+      .poll(
+        async () => {
+          ids = await roomIds(ha);
+          return ids;
+        },
+        { message: 'seeded rooms present', timeout: 15_000 },
+      )
+      .toEqual(expect.arrayContaining(SEEDED_ROOM_IDS));
+    console.log(`rooms after addition: ${ids.join(', ')}`);
+    expect(ids.filter(isE2e), 'e2e_ rooms after addition').toEqual([]);
+  } finally {
+    ha.close();
   }
 });
