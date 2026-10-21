@@ -7,6 +7,6 @@ spec: .sdd/specs/002-e2e-testing.md
 plan: .sdd/plans/002-e2e-testing-PLAN.md
 tasks: .sdd/tasks/002-e2e-testing-TASKS.md
 open-questions: README 12 default rooms (Q3); file conflicts C1 to C14 (see .sdd/onboarding/MIGRATION.md)
-accepted-gaps: 001 F2 editor reason label and house badge; F5 options step and field name; F7 get_blocks house response shape; 002 runner refusal check without confirmation line not tested (until SDD E2E agent)
+accepted-gaps: 001 F2 editor reason label and house badge; F5 options step and field name; F7 get_blocks house response shape; 002 runner refusal check without confirmation line not tested (until SDD E2E agent); 002.3 services part of R16 (HA local time) has regression coverage only
 next: /sdd-review spec 002 (test phase done 2026-10-21: unit 74, E2E 27/27 run 20261021-194152); open: tasks 001.1 T4.7 four user decisions (keep or change)
 onboarded: 2026-10-19
