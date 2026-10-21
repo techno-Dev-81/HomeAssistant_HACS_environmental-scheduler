@@ -177,6 +177,10 @@ export class HaWs {
     return this.rest('POST', `/api/config/config_entries/options/flow/${flowId}`, userInput);
   }
 
+  abortOptionsFlow(flowId: string): Promise<any> {
+    return this.rest('DELETE', `/api/config/config_entries/options/flow/${flowId}`);
+  }
+
   // --- Helpers (input_boolean, input_number, input_select) ---
 
   createHelper(domain: 'input_boolean' | 'input_number' | 'input_select', fields: Json): Promise<any> {

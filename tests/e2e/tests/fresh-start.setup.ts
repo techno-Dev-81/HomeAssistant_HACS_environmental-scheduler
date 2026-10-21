@@ -3,11 +3,14 @@ import { HaWs } from '../helpers/ha-ws';
 import { login } from '../helpers/login';
 import {
   addIntegration,
+  addRoomInOptionsFlow,
   deleteRoomInOptionsFlow,
   finishOptionsFlow,
   openDevicesAndServices,
   openIntegrationOptions,
   removeIntegration,
+  setHouseOccupancyInOptionsFlow,
+  setRoomEntitiesInOptionsFlow,
 } from '../helpers/integration-ui';
 
 // Fresh start: serial setup tests, run in file order (R6a, R7, R7a).
@@ -368,6 +371,114 @@ test('delete seeded rooms', async ({ page }) => {
     await expect
       .poll(async () => roomIds(ha), { message: 'no rooms remain', timeout: 15_000 })
       .toEqual([]);
+  } finally {
+    ha.close();
+  }
+});
+
+const OCCUPANCY_ENTITY = 'input_boolean.e2e_house_occupied';
+
+// The baseline rooms of plan section 2 (amendment 002.1: no temperature sensor).
+const EXPECTED_ROOMS: Json[] = [
+  { id: 'e2e_heating', name: 'e2e-heating', climate_entities: ['climate.e2e_thermostat'], hot_water_entity: null, follow_house_schedule: false },
+  { id: 'e2e_hot_water', name: 'e2e-hot-water', climate_entities: [], hot_water_entity: 'input_boolean.e2e_hot_water', follow_house_schedule: false },
+  { id: 'e2e_follower', name: 'e2e-follower', climate_entities: [], hot_water_entity: null, follow_house_schedule: true },
+];
+
+// No API returns the house occupancy entity, so it is read from the global
+// settings form of an options flow opened over REST (the value the form
+// shows), and that flow is aborted without saving.
+async function storedOccupancyEntity(ha: HaWs): Promise<unknown> {
+  const [entry] = await ha.listConfigEntries(DOMAIN);
+  const menu: Json = await ha.startOptionsFlow(String(entry.entry_id));
+  try {
+    const form: Json = await ha.optionsFlowStep(menu.flow_id, { next_step_id: 'global_settings' });
+    const field = (form.data_schema as Json[]).find((f) => f.name === 'house_occupancy_entity');
+    return field?.description?.suggested_value;
+  } finally {
+    await ha.abortOptionsFlow(menu.flow_id);
+  }
+}
+
+// R6: add the e2e rooms and set the occupancy entity through the options
+// flow, in the browser; follow on e2e_follower through update_room (D6).
+test('configure from zero', async ({ page }) => {
+  const ha = await HaWs.connect();
+  try {
+    await login(page);
+    await openDevicesAndServices(page);
+    await openIntegrationOptions(page, INTEGRATION_NAME);
+
+    // The pickers show friendly names; they are read from HA, not assumed.
+    const friendlyName = async (entityId: string): Promise<string> =>
+      String((await entityState(ha, entityId))?.attributes?.friendly_name ?? entityId);
+
+    const start = Date.now();
+    for (const name of ['e2e-heating', 'e2e-hot-water', 'e2e-follower']) {
+      await addRoomInOptionsFlow(page, name);
+      console.log(`added "${name}"`);
+    }
+    await setRoomEntitiesInOptionsFlow(page, 'e2e-heating', [
+      {
+        label: 'TRV / climate entities',
+        entityId: 'climate.e2e_thermostat',
+        friendlyName: await friendlyName('climate.e2e_thermostat'),
+      },
+    ]);
+    console.log('e2e-heating: climate.e2e_thermostat set');
+    await setRoomEntitiesInOptionsFlow(page, 'e2e-hot-water', [
+      {
+        label: 'Hot water entity',
+        entityId: 'input_boolean.e2e_hot_water',
+        friendlyName: await friendlyName('input_boolean.e2e_hot_water'),
+      },
+    ]);
+    console.log('e2e-hot-water: input_boolean.e2e_hot_water set');
+    await setHouseOccupancyInOptionsFlow(page, OCCUPANCY_ENTITY, await friendlyName(OCCUPANCY_ENTITY));
+    console.log(`house occupancy entity set: ${OCCUPANCY_ENTITY}`);
+    await finishOptionsFlow(page);
+    console.log(`options flow configured in ${Date.now() - start} ms`);
+
+    await ha.callServiceWithResponse(DOMAIN, 'update_room', { room: 'e2e_follower', follow_house_schedule: true });
+
+    await ha.command('call_service', {
+      domain: 'input_boolean',
+      service: 'turn_off',
+      target: { entity_id: OCCUPANCY_ENTITY },
+    });
+
+    const result = await ha.callServiceWithResponse(DOMAIN, 'get_rooms');
+    const rooms = result.response.rooms as Json[];
+    for (const r of rooms) {
+      console.log(
+        `room ${r.id}: name "${r.name}" climate [${r.climate_entities}] sensors [${r.temperature_sensors}] ` +
+          `hot water ${r.hot_water_entity} follow ${r.follow_house_schedule}`,
+      );
+    }
+    expect(rooms.map((r) => r.id).sort(), 'room ids').toEqual(EXPECTED_ROOMS.map((r) => r.id).sort());
+    for (const expected of EXPECTED_ROOMS) {
+      const room = rooms.find((r) => r.id === expected.id) as Json;
+      expect(room, `room ${expected.id}`).toMatchObject({
+        ...expected,
+        temperature_sensors: [],
+        persons: [],
+        area_id: null,
+        door_entities: [],
+        window_entities: [],
+      });
+      // The options flow stores door and window entities in door_window_actions.
+      expect(room.door_window_actions?.doors?.entities ?? [], `${expected.id} door entities`).toEqual([]);
+      expect(room.door_window_actions?.windows?.entities ?? [], `${expected.id} window entities`).toEqual([]);
+    }
+
+    const occupancy = await storedOccupancyEntity(ha);
+    console.log(`stored house occupancy entity: ${occupancy}`);
+    expect(occupancy, 'house occupancy entity').toBe(OCCUPANCY_ENTITY);
+
+    await expect
+      .poll(async () => stateOf(ha, OCCUPANCY_ENTITY), { message: `${OCCUPANCY_ENTITY} is off`, timeout: 15_000 })
+      .toBe('off');
+    console.log(`${OCCUPANCY_ENTITY}: off`);
   } finally {
     ha.close();
   }

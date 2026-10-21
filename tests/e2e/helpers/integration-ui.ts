@@ -66,3 +66,78 @@ export async function finishOptionsFlow(page: Page): Promise<void> {
   await flow.getByText('Done', { exact: true }).click();
   await flow.waitFor({ state: 'hidden', timeout: TIMEOUT });
 }
+
+// In the options flow menu: Add a room, fill Room name, Submit. The flow
+// returns to its menu.
+export async function addRoomInOptionsFlow(page: Page, roomName: string): Promise<void> {
+  const flow = page.locator('dialog-data-entry-flow');
+  await flow.getByText('Add a room', { exact: true }).click();
+  await flow.getByRole('textbox', { name: 'Room name' }).fill(roomName, { timeout: TIMEOUT });
+  await flow.getByRole('button', { name: 'Submit' }).click();
+  await flow.getByText('Add a room', { exact: true }).waitFor({ timeout: TIMEOUT });
+}
+
+// An entity to pick: its id is typed in the search and the option is chosen
+// by its displayed name (the friendly name), because the search is fuzzy and
+// also lists similar entities and a "Create a new ... helper" option.
+export interface PickedEntity {
+  label: string;
+  entityId: string;
+  friendlyName: string;
+}
+
+// In an open options flow form: open the entity picker whose label starts
+// with `label`, search by the entity id and pick the single option shown
+// with the entity's friendly name.
+// The picker is scoped by its HA element tag and label text; a multiple
+// picker adds an empty field after each pick, so the last field is used.
+// The search popup opens inside the picker; it is scoped by its element tag
+// because its dialog role holds a nested dialog and its name differs between
+// a single picker (the label) and a multiple one ("Select option").
+async function pickEntity(page: Page, { label, entityId, friendlyName }: PickedEntity): Promise<void> {
+  const flow = page.locator('dialog-data-entry-flow');
+  const picker = flow.locator('ha-selector-entity').filter({ hasText: label });
+  await picker.locator('ha-picker-field').last().click();
+  const popup = picker.locator('wa-popover');
+  await popup.getByRole('textbox').fill(entityId, { timeout: TIMEOUT });
+  // Options are scoped by element tag: their text is slotted, so it is not
+  // inside the listitem role in the DOM.
+  const option = popup.locator('ha-combo-box-item').filter({ has: page.getByText(friendlyName, { exact: true }) });
+  await option.first().waitFor({ timeout: TIMEOUT });
+  const count = await option.count();
+  if (count !== 1) {
+    throw new Error(`entity picker "${label}": ${count} options named "${friendlyName}" for ${entityId}, expected 1`);
+  }
+  await option.click();
+  await popup.waitFor({ state: 'hidden', timeout: TIMEOUT });
+}
+
+// In the options flow menu: Edit a room, pick the room, Submit, set each
+// entity field given (by label start), Submit. The flow returns to its menu.
+export async function setRoomEntitiesInOptionsFlow(
+  page: Page,
+  roomName: string,
+  entities: PickedEntity[],
+): Promise<void> {
+  const flow = page.locator('dialog-data-entry-flow');
+  await flow.getByText('Edit a room', { exact: true }).click();
+  await flow.getByRole('radio', { name: roomName, exact: true }).click({ timeout: TIMEOUT });
+  await flow.getByRole('button', { name: 'Submit' }).click();
+  await flow.getByText(`Edit Room \u2014 ${roomName}`, { exact: true }).waitFor({ timeout: TIMEOUT });
+  for (const entity of entities) {
+    await pickEntity(page, entity);
+  }
+  await flow.getByRole('button', { name: 'Submit' }).click();
+  await flow.getByText('Edit a room', { exact: true }).waitFor({ timeout: TIMEOUT });
+}
+
+// In the options flow menu: Global settings, pick the house occupancy entity,
+// Submit. The other fields keep the values the form shows. The flow returns
+// to its menu.
+export async function setHouseOccupancyInOptionsFlow(page: Page, entityId: string, friendlyName: string): Promise<void> {
+  const flow = page.locator('dialog-data-entry-flow');
+  await flow.getByText('Global settings', { exact: true }).click();
+  await pickEntity(page, { label: 'House occupancy entity', entityId, friendlyName });
+  await flow.getByRole('button', { name: 'Submit' }).click();
+  await flow.getByText('Global settings', { exact: true }).waitFor({ timeout: TIMEOUT });
+}
