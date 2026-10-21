@@ -4,12 +4,13 @@ import { HaWs } from '../helpers/ha-ws';
 import { login } from '../helpers/login';
 import { blockWindow } from '../helpers/time-window';
 
-// Household user scenarios (tasks amendment 001.1, scenarios 13 to 18), in the
-// browser on the e2e-test dashboard (spec 002 R10a): the schedule editor card
-// and the room config card. Setup (clearing the day used, seeding blocks,
-// house occupancy) uses the WebSocket API before the page opens, and stored
-// values are read back through the API after each browser action. Each test
-// puts back any baseline state it changes, pass or fail (plan 002 section 2).
+// Household user scenarios (tasks amendment 001.1, scenarios 13 to 21), in
+// the browser on the e2e-test dashboard (spec 002 R10a): the schedule
+// editor card, the room config card and the overview cards. Setup (clearing
+// the day used, seeding blocks, house occupancy) uses the WebSocket API
+// before the page opens, and stored values are read back through the API
+// after each browser action. Each test puts back any baseline state it
+// changes, pass or fail (plan 002 section 2).
 
 type Json = Record<string, any>;
 
@@ -399,5 +400,126 @@ test('18. Household user: when I switch on "follow house schedule" for a heating
     } finally {
       ha.close();
     }
+  }
+});
+
+// The default overview card and the LCARS overview card. Every query is scoped
+// to one of them, because the cards on the dashboard show similar labels.
+function defaultOverview(page: Page): Locator {
+  return page.locator('environmental-scheduler-overview-card');
+}
+
+function lcarsOverview(page: Page): Locator {
+  return page.locator('environmental-scheduler-overview-card-lcars');
+}
+
+test('19. Household user: when I look at the default overview card during an occupied block, I should see "schedule (occupied)" in green', async ({ page }) => {
+  const ha = await HaWs.connect();
+  try {
+    const { day, start, end } = todayWindow();
+    await clearDay(ha, own(HEATING), day);
+    await commitBlock(ha, {
+      room: HEATING,
+      day,
+      start_time: start,
+      end_time: end,
+      temperature: 18,
+      occupied_temperature: 22,
+    });
+    await setOccupied(ha, true);
+
+    await openDashboard(page);
+
+    const tile = defaultOverview(page).locator(`.room-tile[data-room="${HEATING}"]`);
+    const reason = tile.locator('.room-reason');
+    await expect(reason, 'room reason').toHaveText('schedule (occupied)', { timeout: TIMEOUT });
+    await expect(reason, 'room reason colour (#4caf50)').toHaveCSS('color', 'rgb(76, 175, 80)');
+    await expect(tile.locator('.room-temp'), 'room temperature').toHaveText('22°C');
+  } catch (err) {
+    await failureSnapshot(page);
+    throw err;
+  } finally {
+    try {
+      await setOccupied(ha, false);
+    } finally {
+      ha.close();
+    }
+  }
+});
+
+test('20. Household user: when I look at the LCARS overview card during an occupied block, I should see "Schedule (occupied)" in light green (#66ff99)', async ({ page }) => {
+  const ha = await HaWs.connect();
+  try {
+    const { day, start, end } = todayWindow();
+    await clearDay(ha, own(HEATING), day);
+    await commitBlock(ha, {
+      room: HEATING,
+      day,
+      start_time: start,
+      end_time: end,
+      temperature: 18,
+      occupied_temperature: 22,
+    });
+    await setOccupied(ha, true);
+
+    await openDashboard(page);
+
+    // The reason text is uppercased by CSS, so its text content is compared.
+    // The schedule colour is on the tile's accent bar (spec 001 section 7).
+    const tile = lcarsOverview(page).locator(`.lcars-room-tile[data-room="${HEATING}"]`);
+    await expect(tile.locator('.lcars-room-reason'), 'room reason').toHaveText('Schedule (occupied)', { timeout: TIMEOUT });
+    await expect(tile.locator('.lcars-room-accent'), 'accent bar colour (#66ff99)').toHaveCSS(
+      'background-color',
+      'rgb(102, 255, 153)',
+    );
+  } catch (err) {
+    await failureSnapshot(page);
+    throw err;
+  } finally {
+    try {
+      await setOccupied(ha, false);
+    } finally {
+      ha.close();
+    }
+  }
+});
+
+test('21. Household user: when I edit a house block while both overview cards are open, I should see both overviews update without reloading the page', async ({ page }) => {
+  const ha = await HaWs.connect();
+  try {
+    const { day, start, end } = todayWindow();
+    await clearDay(ha, HOUSE, day);
+    await clearDay(ha, own(FOLLOWER), day);
+    const houseBlock = await commitBlock(ha, { ...HOUSE, day, start_time: start, end_time: end, temperature: 21.5 });
+
+    await openDashboard(page);
+
+    // The follower room shows the house block in both overview cards.
+    const defaultTemp = defaultOverview(page).locator(`.room-tile[data-room="${FOLLOWER}"] .room-temp`);
+    const lcarsTemp = lcarsOverview(page).locator(`.lcars-room-tile[data-room="${FOLLOWER}"] .lcars-room-temp`);
+    await expect(defaultTemp, 'default overview before the edit').toHaveText('21.5°C', { timeout: TIMEOUT });
+    await expect(lcarsTemp, 'LCARS overview before the edit').toHaveText('21.5°C', { timeout: TIMEOUT });
+
+    // Edit the house block in the schedule editor, on the same page.
+    await pick(page, 'House');
+    await openEditBlock(page, String(houseBlock.id));
+    await temperatureField(page).fill('23');
+    await saveBlock(page);
+
+    await expect
+      .poll(async () => (await dayBlocks(ha, HOUSE, day)).map((b) => [b.id, b.temperature]), {
+        message: 'house block edited',
+        timeout: TIMEOUT,
+      })
+      .toEqual([[houseBlock.id, 23]]);
+
+    // Both overviews update with no page reload.
+    await expect(defaultTemp, 'default overview after the edit').toHaveText('23°C', { timeout: TIMEOUT });
+    await expect(lcarsTemp, 'LCARS overview after the edit').toHaveText('23°C', { timeout: TIMEOUT });
+  } catch (err) {
+    await failureSnapshot(page);
+    throw err;
+  } finally {
+    ha.close();
   }
 });
