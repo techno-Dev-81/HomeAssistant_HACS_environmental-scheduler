@@ -69,7 +69,7 @@ Each test is titled "N. User: when I ..., I should see ...", from the scenario t
 ## WP5: Constitution
 | ID | Task | Done when | Depends | Status | Evidence |
 |---|---|---|---|---|---|
-| T5.1 | Draft `.sdd/constitution.3-e2e-test-command.md`:<br>- E2E test command `bash tests/e2e/run.sh`;<br>- in the test runner notes, replace amendment 1's manual-checklist sentence, and name Node, Playwright 1.60.0, Chromium, `ws`, and Python stdlib for redaction | the user approves the amendment | T2.6 | doing | |
+| T5.1 | Draft `.sdd/constitution.3-e2e-test-command.md`:<br>- E2E test command `bash tests/e2e/run.sh`;<br>- in the test runner notes, replace amendment 1's manual-checklist sentence, and name Node, Playwright 1.60.0, Chromium, `ws`, and Python stdlib for redaction | the user approves the amendment | T2.6 | done | constitution amendment 3 approved by the user 2026-10-21 (with standing request for E2E runs within workflow steps) |
 
 Status values: todo, doing, done, blocked. (T4.7 is not used, to avoid confusion with tasks amendment 001.1 T4.7.)
 
